@@ -4,25 +4,48 @@ function! TranslateCallback(chan, msg)
       echo a:msg
 endfunction
 
-function! s:translate(words, is_echo=0)
-      if !a:is_echo
-            let cmd = printf('python3 %s "%s"', s:translator_file, a:words)
-      else
-            let cmd = printf('python3 %s "%s" 1', s:translator_file, a:words)
-      endif
-      if exists('*jobstart')
-            return jobstart(cmd, self)
-      elseif exists('*job_start') && ! has('gui_macvim')
-            return job_start(cmd, {'out_cb': 'TranslateCallback'})
-      else
-            echo system(cmd)
-      endif
+function! s:base64(s)
+    let @b = a:s
+    if has('python')
+python << EOF
+import base64
+import vim
+res = base64.b64encode(vim.bindeval('@b'))
+EOF
+    elseif has('python3')
+python3 << EOF
+import base64
+import vim
+res = base64.b64encode(vim.bindeval('@b'))
+EOF
+    endif
+    if has('python')
+        return pyeval('res')
+    elseif has('python3')
+        return py3eval('res')
+    endif
+endfunction
+
+function! s:translate(words, is_echo)
+    if len(substitute(a:words, '\s', '', 'g')) == 0
+        return
+    endif
+    "echom a:words
+    let l:cmd = 'python3 '.s:translator_file.' '.s:base64(a:words).' '.a:is_echo
+    if exists('*job_start') && ! has('gui_macvim')
+        let l:job = job_start(l:cmd, {'out_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback'})
+        if job_status(l:job) != 'on'
+          echo system(l:cmd)
+        endif
+    else
+        echo system(l:cmd)
+    endif
 endfunction
 
 function! s:input_translate()
       let l:word = input('Enter the word: ')
       redraw!
-      call s:translate(substitute(l:word, '"', "'", 'g'), 1)
+      call s:translate(l:word, 1)
 endfunction
 
 function! s:cursor_translate()
@@ -30,8 +53,7 @@ function! s:cursor_translate()
 endfunction
 
 function! s:visual_translate()
-      let l:visual_selected = substitute(s:get_visual_select(), '"', "'", 'g')
-      call s:translate(l:visual_selected)
+      call s:translate(s:get_visual_select(), 0)
 endfunction
 
 function! s:get_visual_select()

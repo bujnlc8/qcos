@@ -7,6 +7,7 @@ import os
 import random
 import re
 import time
+import base64
 from sys import argv, stdout, version_info
 
 try:
@@ -262,6 +263,7 @@ params = (
 
 
 def get_result(query, echo=0):
+    query = base64.b64decode(query).decode('utf-8')
     if echo:
         return '{}: {}'.format(query, _get_result(query))
     return _get_result(query)
@@ -325,8 +327,8 @@ def _get_result(query):
 
 
 if __name__ == '__main__':
-    if len(argv) == 2:
-        stdout.write(str(get_result(argv[1])))
-    elif len(argv) > 2:
+    if len(argv) >= 3:
         stdout.write(str(get_result(argv[1], int(argv[2]))))
+    elif len(argv) >= 2:
+        stdout.write(str(get_result(argv[1])))
     stdout.flush()
