@@ -55,31 +55,31 @@ function! s:do_enshrine(words, translation)
       call system(s:youdao_translator_enshrine_comp_algo.' '.s:youdao_translator_enshrine_path.' -c -d  > '. s:current_path.'/.tmp.tmp')
       let l:need_write = 1
       for x in readfile(s:current_path.'/.tmp.tmp')
-        if match(x, a:words.' ## ') != -1
+        if match(x, a:words."\u0001") != -1
           let l:need_write = 0
           break
         endif
       endfor
       if l:need_write
-        call system('echo "'.a:words.' ## '.a:translation.'\n" >> '.s:current_path.'/.tmp.tmp && '.s:youdao_translator_enshrine_comp_algo.' -c  --best '.s:current_path.'/.tmp.tmp  > '.s:youdao_translator_enshrine_path.' && rm -rf '.s:current_path.'/.tmp.tmp')
+        call system('echo "'.a:words.'\u0001 '.a:translation.'\n" >> '.s:current_path.'/.tmp.tmp && '.s:youdao_translator_enshrine_comp_algo.' -c  --best '.s:current_path.'/.tmp.tmp  > '.s:youdao_translator_enshrine_path.' && rm -rf '.s:current_path.'/.tmp.tmp')
       else
         call system('rm -rf '.s:current_path.'/.tmp.tmp')
       endif
     else
-      call system('echo "'.a:words.' ## '.a:translation.'\n" | '.s:youdao_translator_enshrine_comp_algo.' -c  --best > '.s:youdao_translator_enshrine_path)
+      call system('echo "'.a:words.'\u0001 '.a:translation.'\n" | '.s:youdao_translator_enshrine_comp_algo.' -c  --best > '.s:youdao_translator_enshrine_path)
     endif
   else
     let l:need_write = 1
     if filereadable(s:youdao_translator_enshrine_path)
       for x in readfile(s:youdao_translator_enshrine_path)
-        if match(x, a:words.' ## ') != -1
+        if match(x, a:words."\u0001") != -1
           let l:need_write = 0
           break
         endif
       endfor
     endif
     if l:need_write
-      call system('echo "'.a:words.' ## '.a:translation.'\n" >> '.s:youdao_translator_enshrine_path)
+      call system('echo "'.a:words.'\u0001 '.a:translation.'\n" >> '.s:youdao_translator_enshrine_path)
     endif
   endif
 endfunction
@@ -88,6 +88,7 @@ let s:channel_map = {}
 
 function! s:translate(words, is_echo, do_enshrine)
   if len(substitute(a:words, '\s', '', 'g')) == 0
+    echo '输入为空'
     return
   endif
   let l:base64 = util#base64(substitute(a:words, '\r', '', 'g'))
@@ -197,3 +198,4 @@ command! -nargs=?   YdE call <SID>enshrine_words(<q-args>)
 command! YdEE call <SID>enshrine_edit()
 autocmd! BufWritePre *.yde set fileencoding=utf-8
 autocmd! BufWritePost *.yde :call <SID>after_write_enshrine_file()
+autocmd! BufWinEnter *.yde match  Conceal /[\u0001]/
