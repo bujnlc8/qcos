@@ -95,7 +95,7 @@ function! s:get_visual_select()
     let l:a_save = @a
     normal! gv"ay
     if len(@a) > 0
-      echo @a
+      echo @a."\n"
     endif
     return @a
   finally
