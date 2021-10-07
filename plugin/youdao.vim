@@ -1,73 +1,109 @@
 let s:translator_file= expand('<sfile>:p:h') . '/translator.py'
 
-function! TranslateCallback(chan)
-  echo ch_read(a:chan, {'timeout': 0})
+if !exists('g:youdao_translator_cache')
+  let g:youdao_translator_cache = 1
+endif
+
+if !exists('g:youdao_translator_cache_path')
+  let g:youdao_translator_cache_path = expand('<sfile>:p:h').'/.cache'
+endif
+
+if g:youdao_translator_cache
+  if !isdirectory(g:youdao_translator_cache_path)
+    call mkdir(g:youdao_translator_cache_path)
+  endif
+endif
+
+function! s:do_cache(md5, s)
+  let l:ppdir = g:youdao_translator_cache_path.'/'.a:md5[:1]
+  if !isdirectory(l:ppdir)
+    call mkdir(l:ppdir)
+  endif
+  let l:pdir = l:ppdir.'/'.a:md5[2:3]
+  if !isdirectory(l:pdir)
+    call mkdir(l:pdir)
+  endif
+  call writefile([a:s], l:pdir.'/'.a:md5)
 endfunction
 
-function! s:base64(s)
-    let @b = a:s
-    if has('python')
-python << EOF
-import base64
-import vim
-res = base64.b64encode(vim.bindeval('@b'))
-EOF
-    elseif has('python3')
-python3 << EOF
-import base64
-import vim
-res = base64.b64encode(vim.bindeval('@b'))
-EOF
+function! TranslateCallback(chan, msg)
+  echom a:msg
+  if g:youdao_translator_cache
+    let l:channel_id = matchstr(string(a:chan), '[0-9]\+')
+    if has_key(s:channel_map, l:channel_id)
+      call s:do_cache(s:channel_map[l:channel_id], a:msg)
+      unlet s:channel_map[l:channel_id]
     endif
-    if has('python')
-        return pyeval('res')
-    elseif has('python3')
-        return py3eval('res')
-    endif
+  endif
 endfunction
+
+
+let s:channel_map = {}
 
 function! s:translate(words, is_echo)
-    if len(substitute(a:words, '\s', '', 'g')) == 0
-        return
+  if len(substitute(a:words, '\s', '', 'g')) == 0
+    return
+  endif
+  let l:base64 = util#base64(substitute(a:words, '\r', '', 'g'))
+  let l:md5 = ''
+  if g:youdao_translator_cache
+    let l:md5 = util#md5(l:base64)
+    let l:ppdir = g:youdao_translator_cache_path.'/'.l:md5[:1]
+    if isdirectory(l:ppdir)
+      let l:pdir = l:ppdir.'/'.l:md5[2:3]
+      if isdirectory(l:pdir)
+        let l:path = l:pdir.'/'.l:md5
+        if filereadable(l:path)
+          echo readfile(l:path)[0]
+          return
+        endif
+      endif
     endif
-    let l:cmd = 'python3 '.s:translator_file.' '.s:base64(substitute(a:words, '\r', '', 'g')).' '.a:is_echo
-    " (todo) when the words is long, the async mode cannot display result correctly,
-    " it flashes by the status line, appears no more than 10ms, so adopted
-    " synced mode `system` uniformly, if you get the solution, please let me
-    " know.
-    "if exists('*job_start') && ! has('gui_macvim')
-        "call job_start(l:cmd, {'close_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback', 'mode': 'raw'})
-    "else
-        "echo system(l:cmd)
-    "endif
-    echo system(l:cmd)
+  endif
+  let l:cmd = 'python3 '.s:translator_file.' '.l:base64.' '.a:is_echo
+  if exists('*job_start') && ! has('gui_macvim')
+    let l:job = job_start(l:cmd, {'out_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback', 'mode': 'raw'})
+    if g:youdao_translator_cache
+      let l:channel_id = matchstr(string(job_getchannel(l:job)), '[0-9]\+')
+      let s:channel_map[l:channel_id] = l:md5
+    endif
+  else
+    let l:res = system(l:cmd)
+    echo l:res
+    if g:youdao_translator_cache
+      call s:do_cache(l:md5, l:res)
+    endif
+  endif
 endfunction
 
 function! s:input_translate()
-      let l:word = input('Enter the word: ')
-      redraw!
-      call s:translate(l:word, 1)
+  let l:word = input('Enter the word: ')
+  redraw!
+  call s:translate(l:word, 1)
 endfunction
 
 function! s:cursor_translate()
-      call s:translate(expand('<cword>'), 1)
+  call s:translate(expand('<cword>'), 1)
 endfunction
 
 function! s:visual_translate()
-      call s:translate(s:get_visual_select(), 0)
+  call s:translate(s:get_visual_select(), 0)
 endfunction
 
 function! s:get_visual_select()
-      try
-            let l:a_save = @a
-            normal! gv"ay
-            return @a
-      finally
-            let @a = l:a_save
-      endtry
+  try
+    let l:a_save = @a
+    normal! gv"ay
+    if len(@a) > 0
+      echo @a
+    endif
+    return @a
+  finally
+    let @a = l:a_save
+  endtry
 endfunction
 
 
-command! YdInput call <SID>input_translate()
-command! YdCursor call <SID>cursor_translate()
-command! YdVisual call <SID>visual_translate()
+command! YdI call <SID>input_translate()
+command! YdC call <SID>cursor_translate()
+command! YdV call <SID>visual_translate()
