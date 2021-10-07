@@ -1,7 +1,7 @@
 let s:translator_file= expand('<sfile>:p:h') . '/translator.py'
 
-function! TranslateCallback(chan, msg)
-      echo a:msg
+function! TranslateCallback(chan)
+  echo ch_read(a:chan, {'timeout': 0})
 endfunction
 
 function! s:base64(s)
@@ -30,16 +30,17 @@ function! s:translate(words, is_echo)
     if len(substitute(a:words, '\s', '', 'g')) == 0
         return
     endif
-    "echom a:words
-    let l:cmd = 'python3 '.s:translator_file.' '.s:base64(a:words).' '.a:is_echo
-    if exists('*job_start') && ! has('gui_macvim')
-        let l:job = job_start(l:cmd, {'out_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback'})
-        if job_status(l:job) != 'on'
-          echo system(l:cmd)
-        endif
-    else
-        echo system(l:cmd)
-    endif
+    let l:cmd = 'python3 '.s:translator_file.' '.s:base64(substitute(a:words, '\r', '', 'g')).' '.a:is_echo
+    " (todo) when the words is long, the async mode cannot display result correctly,
+    " it flashes by the status line, appears no more than 10ms, so adopted
+    " synced mode `system` uniformly, if you get the solution, please let me
+    " know.
+    "if exists('*job_start') && ! has('gui_macvim')
+        "call job_start(l:cmd, {'close_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback', 'mode': 'raw'})
+    "else
+        "echo system(l:cmd)
+    "endif
+    echo system(l:cmd)
 endfunction
 
 function! s:input_translate()
