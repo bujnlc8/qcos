@@ -172,6 +172,10 @@ function! s:enshrine_words(arg)
 endfunction
 
 function! s:enshrine_edit()
+  if !filereadable(s:youdao_translator_enshrine_path)
+    echo '收藏文件找不到:('
+    return
+  endif
   execute 'tabnew! '.s:youdao_translator_enshrine_path
   if len(s:youdao_translator_enshrine_comp_algo) > 0
     execute '0,$ !'.s:youdao_translator_enshrine_comp_algo.' -d -c -q'
