@@ -168,7 +168,7 @@ function! s:enshrine_words(arg)
   else
     let l:word = a:arg
   endif
-  if len(l:word) > 100
+  if len(l:word) > 500
     echo '待收藏词太长'
     return
   endif
