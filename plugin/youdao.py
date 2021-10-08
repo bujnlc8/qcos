@@ -87,14 +87,14 @@ def _get_result(query):
             timeout=15,
         )
         if res.status_code != 200:
-            return '[{}] 返回异常'.format(res.status_code)
+            return 'Err:返回异常[{}]'.format(res.status_code)
         res = res.json()
         if res['errorCode'] != 0:
             if res['errorCode'] == 40:
-                return '无结果'
+                return 'Err:无结果'
             if res['errorCode'] == 50:
-                return '签名错误'
-            return '[{}] 返回异常'.format(res['errorCode'])
+                return 'Err:签名错误'
+            return 'Err:返回异常[{}]'.format(res['errorCode'])
         result = []
         if 'smartResult' in res:
             entries = res['smartResult']['entries']
@@ -109,10 +109,11 @@ def _get_result(query):
                         result.append(y['tgt'])
         if result:
             return ''.join(result).replace('\r\n', '')
-        return '结果错误'
+        return 'Err:结果错误'
     except requests.RequestException:
-        return '请求异常'
-
+        return 'Err:请求异常'
+    except Exception as e:
+        return 'Err:产生异常: %s' % e
 
 if __name__ == '__main__':
     if len(argv) >= 3:
