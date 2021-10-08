@@ -161,7 +161,10 @@ endfunction
 
 function! s:enshrine_words(arg)
   if len(a:arg) == 0
-    let l:word = expand('<cword>')
+    let l:word = s:get_visual_select()
+    if len(l:word) == 0
+      let l:word = expand('<cword>')
+    endif
   else
     let l:word = a:arg
   endif
