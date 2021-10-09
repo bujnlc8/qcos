@@ -23,7 +23,7 @@ endfunction
 
 function! util#md5(s)
     if executable('md5')
-        return matchstr(system('echo -n "'.a:s.'" | md5'), '[a-z 0-9]*')
+        return system('echo -n "'.a:s.'" | md5')
     elseif has('python')
         let @b = a:s
 python << EOF

@@ -157,7 +157,7 @@ endfunction
 function! s:get_visual_select()
     try
         let l:a_save = @a
-        normal! gv"ay
+        silent! normal! gv"ay
         if len(@a) > 0
             echo @a."\n"
         endif
@@ -167,20 +167,28 @@ function! s:get_visual_select()
     endtry
 endfunction
 
-function! s:enshrine_words(arg)
+function! s:_enshrine_words(arg,...)
     if len(a:arg) == 0
-        let l:word = s:get_visual_select()
-        if len(l:word) == 0
-            let l:word = expand('<cword>')
-        endif
+        let l:word = expand('<cword>')
     else
         let l:word = a:arg
+    endif
+    if len(a:000) > 0
+        let l:word = s:get_visual_select()
     endif
     if len(l:word) > 500
         echo '待收藏词太长'
         return
     endif
     call s:translate(l:word, 0, 1)
+endfunction
+
+function! s:enshrine_words(arg)
+    call s:_enshrine_words(a:arg)
+endfunction
+
+function! s:enshrine_wordsv()
+    call s:_enshrine_words('', 1)
 endfunction
 
 function! s:enshrine_edit()
@@ -205,8 +213,9 @@ endfunction
 command! Ti call <SID>input_translate()
 command! Tc call <SID>cursor_translate()
 command! Tv call <SID>visual_translate()
-command! -nargs=?   Te call <SID>enshrine_words(<q-args>)
+command! -nargs=? Te call <SID>enshrine_words(<q-args>)
 command! Tee call <SID>enshrine_edit()
+command! Tev call <SID>enshrine_wordsv()
 autocmd! BufWritePre *.tdata set fileencoding=utf-8
 autocmd! BufWritePost *.tdata :call <SID>after_write_enshrine_file()
 autocmd! BufWinEnter *.tdata match  Conceal /[\u0001]/
