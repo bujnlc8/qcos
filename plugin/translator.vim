@@ -201,7 +201,7 @@ function! s:enshrine_edit()
         echo '收藏文件找不到:('
         return
     endif
-    execute 'tabnew! '.s:translator_enshrine_path
+    execute 'silent! tabnew! '.s:translator_enshrine_path
     if len(s:translator_enshrine_comp_algo) > 0
         execute '0,$ !'.s:translator_enshrine_comp_algo.' -d -c -q'
     endif
