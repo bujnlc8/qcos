@@ -45,4 +45,3 @@ EOF
         return py3eval('res')
     endif
 endfunction
-

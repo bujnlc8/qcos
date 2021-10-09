@@ -20,7 +20,9 @@ OR
 
 *   `:Tv`, 支持在visual模式下选中翻译，可以在`.vimrc`加入`vnoremap <leader>tv :<C-u>Tv<CR>`支持快捷键。
 
-*   `:Te`, 收藏单词或语句，如果提供了一个参数，那么会收藏该参数，光标处的单词。
+*   `:Tr`, 支持在visual模式下将文字替换成翻译，可以在`.vimrc`加入`vnoremap <leader>tr :<C-u>Tr<CR>`支持快捷键。
+
+*   `:Te`, 收藏单词或语句，如果提供了一个参数，那么会收藏该参数，否则收藏光标处的单词。
 
 *   `:Tev`, 收藏visual 模式下选中的词汇，需要在visual模式下启用。
 

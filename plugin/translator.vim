@@ -94,12 +94,12 @@ endfunction
 
 let s:channel_map = {}
 
-function! s:translate(words, is_echo, do_enshrine)
+function! s:translate(words, is_echo, do_enshrine, is_replace)
     if len(substitute(a:words, '\s', '', 'g')) == 0
         echo '输入为空'
         return
     endif
-    let l:base64 = util#base64(substitute(a:words, '\r', '', 'g'))
+    let l:base64 = util#base64(a:words)
     let l:md5 = ''
     if g:translator_cache
         let l:md5 = util#md5(l:base64)
@@ -110,18 +110,20 @@ function! s:translate(words, is_echo, do_enshrine)
                 let l:path = l:pdir.'/'.l:md5
                 if filereadable(l:path)
                     let l:res = readfile(l:path)[0]
-                    echo l:res
+                    if !a:is_replace
+                        echo l:res
+                    endif
                     if a:do_enshrine && len(l:res) > 0 && match(l:res, 'Err:') == -1
                         call s:do_enshrine(a:words, l:res)
                         echo a:words.' 收藏成功'
                     endif
-                    return
+                    return l:res
                 endif
             endif
         endif
     endif
     let l:cmd = 'python3 '.s:translator_file.' '.l:base64.' '.a:is_echo
-    if !a:do_enshrine && exists('*job_start') && ! has('gui_macvim')
+    if !a:is_replace && !a:do_enshrine && exists('*job_start') && ! has('gui_macvim')
         let l:job = job_start(l:cmd, {'out_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback', 'mode': 'raw'})
         if g:translator_cache
             let l:channel_id = matchstr(string(job_getchannel(l:job)), '[0-9]\+')
@@ -129,7 +131,9 @@ function! s:translate(words, is_echo, do_enshrine)
         endif
     else
         let l:res = system(l:cmd)
-        echo l:res
+        if !a:is_replace
+            echo l:res
+        endif
         if g:translator_cache
             call s:do_cache(l:md5, l:res)
         endif
@@ -137,28 +141,29 @@ function! s:translate(words, is_echo, do_enshrine)
             call s:do_enshrine(a:words, l:res)
             echo a:words.'收藏成功'
         endif
+        return l:res
     endif
 endfunction
 
 function! s:input_translate()
     let l:word = input('Enter the word: ')
     redraw!
-    call s:translate(l:word, 1, 0)
+    call s:translate(l:word, 1, 0, 0)
 endfunction
 
 function! s:cursor_translate()
-    call s:translate(expand('<cword>'), 1, 0)
+    call s:translate(expand('<cword>'), 1, 0, 0)
 endfunction
 
 function! s:visual_translate()
-    call s:translate(s:get_visual_select(), 0, 0)
+    call s:translate(s:get_visual_select(1), 0, 0, 0)
 endfunction
 
-function! s:get_visual_select()
+function! s:get_visual_select(is_echo)
     try
         let l:a_save = @a
         silent! normal! gv"ay
-        if len(@a) > 0
+        if len(@a) > 0 && a:is_echo
             echo @a."\n"
         endif
         return @a
@@ -174,13 +179,13 @@ function! s:_enshrine_words(arg,...)
         let l:word = a:arg
     endif
     if len(a:000) > 0
-        let l:word = s:get_visual_select()
+        let l:word = s:get_visual_select(1)
     endif
     if len(l:word) > 500
         echo '待收藏词太长'
         return
     endif
-    call s:translate(l:word, 0, 1)
+    call s:translate(l:word, 0, 1, 0)
 endfunction
 
 function! s:enshrine_words(arg)
@@ -210,9 +215,18 @@ function! s:after_write_enshrine_file()
     execute 'bd!'
 endfunction
 
+function! s:replace_translate()
+    let l:text = s:get_visual_select(0)
+    let reg_tmp = @a
+    let @a = s:translate(l:text, 0, 0, 1)
+    silent! normal! gv"ap
+    let @a = reg_tmp
+endfunction
+
 command! Ti call <SID>input_translate()
 command! Tc call <SID>cursor_translate()
-command! Tv call <SID>visual_translate()
+command! -range Tv call <SID>visual_translate()
+command! -range Tr call <SID>replace_translate()
 command! -nargs=? Te call <SID>enshrine_words(<q-args>)
 command! Tee call <SID>enshrine_edit()
 command! Tev call <SID>enshrine_wordsv()
