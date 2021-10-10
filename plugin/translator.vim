@@ -78,10 +78,11 @@ function! s:create_popup(words, result)
                 \'borderhighlight': ['TranslatorBorder'],
                 \'highlight': 'TranslatorHi',
                 \}
+    let l:result = split(a:result, "\n")
     if len(a:words) < 132
-        let l:winid = popup_create([a:words, '------------------------------------------------------------------', a:result], l:options)
+        let l:winid = popup_create([a:words, '------------------------------------------------------------------'] + l:result, l:options)
     else
-        let l:winid = popup_create([a:result], l:options)
+        let l:winid = popup_create(l:result, l:options)
     endif
     call setbufvar(winbufnr(l:winid), '&filetype', 'text')
 endfunction
@@ -91,7 +92,7 @@ function! TranslateCallback(chan, msg)
     if has_key(s:channel_map, l:channel_id)
         if g:translator_outputype == 'echo'
             if s:channel_map[l:channel_id]['is_echo']
-                let l:tmp = s:channel_map[l:channel_id]['words'].': '.a:msg
+                let l:tmp = s:channel_map[l:channel_id]['words'].":\n".a:msg
             else
                 let l:tmp = a:msg
             endif
@@ -99,12 +100,12 @@ function! TranslateCallback(chan, msg)
                 silent! execute 'cexpr "'.l:tmp.'"'
                 silent! execute 'copen'
             else
-                echo l:tmp
+                echo substitute(l:tmp, '\n', ' ', 'g')
             endif
         else
             call s:create_popup(s:channel_map[l:channel_id]['words'], a:msg)
         endif
-        if g:translator_cache
+        if g:translator_cache && !s:channel_map[l:channel_id]['is_zh']
             call s:do_cache(s:channel_map[l:channel_id]['md5'], a:msg)
         endif
         unlet s:channel_map[l:channel_id]
@@ -148,7 +149,7 @@ endfunction
 
 let s:channel_map = {}
 
-function! s:translate(words, is_echo, do_enshrine, is_replace)
+function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
     if len(substitute(a:words, '\s', '', 'g')) == 0
         echo '输入为空'
         return
@@ -159,7 +160,7 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
         let l:is_echo = 0
     endif
     let l:md5 = ''
-    if g:translator_cache
+    if g:translator_cache && !a:is_zh
         let l:md5 = util#md5(l:base64)
         let l:ppdir = g:translator_cache_path.'/'.l:md5[:1]
         if isdirectory(l:ppdir)
@@ -171,7 +172,7 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
                     if !a:is_replace
                         if g:translator_outputype == 'echo'
                             if l:is_echo
-                                let l:tmp = a:words.': '.l:res
+                                let l:tmp = a:words.":\n".l:res
                             else
                                 let l:tmp = l:res
                             endif
@@ -179,7 +180,7 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
                                 silent! execute 'cexpr "'.l:tmp.'"'
                                 silent! execute 'copen'
                             else
-                                echo l:tmp
+                                echo substitute(l:tmp, '\n', ' ', 'g')
                             endif
                         else
                             call s:create_popup(a:words, l:res)
@@ -194,17 +195,21 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
             endif
         endif
     endif
-    let l:cmd = 'python3 '.s:translator_file.' '.l:base64
+    if a:is_zh
+        let l:cmd = 'python3 '.s:current_path.'/baidu.py '.l:base64.' zh'
+    else
+        let l:cmd = 'python3 '.s:translator_file.' '.l:base64
+    endif
     if !a:is_replace && !a:do_enshrine && exists('*job_start') && ! has('gui_macvim')
         let l:job = job_start(l:cmd, {'out_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback', 'mode': 'raw'})
         let l:channel_id = matchstr(string(job_getchannel(l:job)), '[0-9]\+')
-        let s:channel_map[l:channel_id] = {'md5': l:md5, 'words': a:words, 'is_echo': l:is_echo}
+        let s:channel_map[l:channel_id] = {'md5': l:md5, 'words': a:words, 'is_echo': l:is_echo, 'is_zh': a:is_zh}
     else
         let l:res = system(l:cmd)
         if !a:is_replace
             if  g:translator_outputype == 'echo'
                 if l:is_echo
-                    let l:tmp = a:words.': '.l:res
+                    let l:tmp = a:words.":\n".l:res
                 else
                     let l:tmp = l:res
                 endif
@@ -212,13 +217,13 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
                     silent! execute  'cexpr "'.l:tmp.'"'
                     silent! execute 'copen'
                 else
-                    echo l:tmp
+                    echo substitute(l:tmp, '\n', ' ', 'g')
                 endif
             else
                 call s:create_popup(a:words, l:res)
             endif
         endif
-        if g:translator_cache
+        if g:translator_cache && !a:is_zh
             call s:do_cache(l:md5, l:res)
         endif
         if a:do_enshrine && len(l:res) > 0 && match(l:res, 'Err:') ==-1
@@ -231,20 +236,30 @@ endfunction
 
 function! s:input_translate(arg)
     if len(a:arg) > 0
-        call s:translate(a:arg, 1, 0, 0)
+        call s:translate(a:arg, 1, 0, 0, 0)
     else
         let l:word = input('Enter the word: ')
         redraw!
-        call s:translate(l:word, 1, 0, 0)
+        call s:translate(l:word, 1, 0, 0, 0)
+    endif
+endfunction
+
+function! s:input_translate_zh(arg)
+    if len(a:arg) > 0
+        call s:translate(a:arg, 1, 0, 0, 1)
+    else
+        let l:word = input('输入查询的单词: ')
+        redraw!
+        call s:translate(l:word, 1, 0, 0, 1)
     endif
 endfunction
 
 function! s:cursor_translate()
-    call s:translate(expand('<cword>'), 1, 0, 0)
+    call s:translate(expand('<cword>'), 1, 0, 0, 0)
 endfunction
 
 function! s:visual_translate()
-    call s:translate(s:get_visual_select(), 0, 0, 0)
+    call s:translate(s:get_visual_select(), 0, 0, 0, 0)
 endfunction
 
 function! s:get_visual_select()
@@ -273,7 +288,7 @@ function! s:_enshrine_words(arg,...)
         echo '待收藏词太长'
         return
     endif
-    call s:translate(l:word, 0, 1, 0)
+    call s:translate(l:word, 0, 1, 0, 0)
 endfunction
 
 function! s:enshrine_words(arg)
@@ -306,12 +321,13 @@ endfunction
 function! s:replace_translate()
     let l:text = s:get_visual_select()
     let reg_tmp = @a
-    let @a = s:translate(l:text, 0, 0, 1)
+    let @a = s:translate(l:text, 0, 0, 1, 0)
     silent! normal! gv"ap
     let @a = reg_tmp
 endfunction
 
 command! -nargs=? Ti call <SID>input_translate(<q-args>)
+command! -nargs=? Tz call <SID>input_translate_zh(<q-args>)
 command! Tc call <SID>cursor_translate()
 command! -range Tv call <SID>visual_translate()
 command! -range Tr call <SID>replace_translate()

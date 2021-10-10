@@ -19,6 +19,7 @@ except ModuleNotFoundError:
 
 F = '+-a^+6'
 D = '+-3^+b+-f'
+d = ['320305','131321201']
 
 
 def unsigned_right_shitf(n, i):
@@ -85,8 +86,6 @@ def sign(r):
             r = ''.join(f[:10]) + ''.join(f[g // 2: g//2 + 5]) + \
                 ''.join(f[-10:])
     l = '' + chr(103) + chr(116) + chr(107)
-    u = '320305.131321201'
-    d = u.split('.')
     try:
         m = int(d[0])
     except:
@@ -164,12 +163,12 @@ headers = {
 }
 
 
-def get_result(query):
+def get_result(query, is_zh=''):
     query = base64.b64decode(query).decode('utf-8')
-    return _get_result(query)
+    return _get_result(query, is_zh)
 
 
-def _get_result(query):
+def _get_result(query, is_zh=''):
     if re.findall(r'[\u4e00-\u9fa5]+', query):
         fr = 'zh'
         to = 'en'
@@ -208,25 +207,39 @@ def _get_result(query):
                 return 'Err:token失效'
             return 'Err:{}[{}]'.format(res['errmsg'], res['errno'])
         result = []
-        if 'dict_result' in res and fr == 'en':
-            for x in res['dict_result']['simple_means']['symbols']:
-                for y in x['parts']:
-                    if 'part' in y:
-                        result.append(y['part'] + '; '.join(y['means']))
-                    else:
-                        result.append('; '.join(y['means']))
-        elif 'trans_result' in res:
-            for x in res['trans_result']['data']:
-                result.append(x['dst'])
+        if is_zh == 'zh':
+            if 'dict_result' in res and 'zdict' in res['dict_result']:
+                detail = res['dict_result']['zdict']['detail']
+                if detail['chenyu']:
+                    c = detail['chenyu']
+                    result.append('\n'.join(['pinyin: '+ c['pinyin'], '释义: ' + c['explain'], '出处: '+ c['from ']]))
+                elif detail['means']:
+                    m = detail['means'][0]
+                    result.append('pinyin: '+ m['pinyin'])
+                    for x in m['exp'][0]['des']:
+                        result.append(x['main'])
+        else:
+            if 'dict_result' in res and fr == 'en':
+                for x in res['dict_result']['simple_means']['symbols']:
+                    for y in x['parts']:
+                        if 'part' in y:
+                            result.append(y['part'] + '; '.join(y['means']))
+                        else:
+                            result.append('; '.join(y['means']))
+            elif 'trans_result' in res:
+                for x in res['trans_result']['data']:
+                    result.append(x['dst'])
         if result:
-            return ''.join(result).replace('\r\n', '')
-        return 'Err:结果错误'
+            return '\n'.join(result)
+        return 'Err:无结果'
     except requests.RequestException:
         return 'Err:请求异常'
     except Exception as e:
         return 'Err:产生异常: %s' % e
 
 if __name__ == '__main__':
-    if len(argv) >= 2:
+    if len(argv) == 2:
         stdout.write(str(get_result(argv[1])))
+    elif len(argv) == 3 and argv[2] == 'zh':
+        stdout.write(str(get_result(argv[1], 'zh')))
     stdout.flush()

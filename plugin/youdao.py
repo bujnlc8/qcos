@@ -9,7 +9,7 @@ import os
 import random
 import re
 import time
-from sys import argv, stdout, version_info
+from sys import argv, stdout
 
 try:
     import requests
@@ -107,8 +107,8 @@ def _get_result(query):
                     for y in x:
                         result.append(y['tgt'])
         if result:
-            return ''.join(result).replace('\r\n', '')
-        return 'Err:结果错误'
+            return '\n'.join(result)
+        return 'Err:无结果'
     except requests.RequestException:
         return 'Err:请求异常'
     except Exception as e:
