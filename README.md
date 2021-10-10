@@ -30,13 +30,13 @@ OR
 
 ## 选项
 
-*  `let g:translator_cache=1`, 是否启用缓存，默认1。
+*  `let g:translator_cache=1`， 是否启用缓存，默认1。
 
 *  `let g:translator_cache_path='~/.cache'`，缓存路径，默认`expand('<sfile>:p:h').'/.cache'`。 
 
 *  `let g:translator_channel='youdao'`，查询通道，默认`youdao`, 也可切到`baidu`。
 
-* `let:g:translator_outputype='popup'`, 结果输出方式，如果支持弹窗（vim-8.2及以上）默认弹窗展示，否则输出到底部，也可以设置成`echo`显式开启输出到底部，弹窗模式下按`z`关闭弹窗。
+*  `let g:translator_outputype='popup'`， 结果输出方式，如果支持弹窗（vim-8.2及以上）默认弹窗展示，否则输出到底部，也可以设置成`echo`显式开启输出到底部，弹窗模式下按`z`关闭弹窗。
 
 
 ## 后记
@@ -49,6 +49,6 @@ OR
 
 另外，为了推广python3, 本插件只支持python3。
 
-**注意⚠️， 插件在visual模式翻译的时候会默认输出原句，因为在`job_start`异步模式经过我的测试，如果未在翻译前输出一些字符，当翻译的词句长度较长时(大概达到换行的程度)，回调的结果会在状态栏一闪而过，根本看不清, 后来偶然试出这个略带trick的方法。如果你有好的办法， 请在Issues中告诉我， 感激不尽。**
+**注意⚠️， 插件在`visual`模式翻译的时候会默认输出原句，因为在`job_start`异步模式经过我的测试，如果未在翻译前输出一些字符，当翻译的词句长度较长时(大概达到换行的程度)，回调的结果会在状态栏一闪而过，根本看不清, 后来偶然试出这个略带trick的方法。如果你有好的办法， 请在Issues中告诉我， 感激不尽。**
 
 如果百度翻译提示token失效或者类似的错误，请尝试用chrome访问[百度翻译](https://fanyi.baidu.com/)，打开开发者工具，随意输入一个单词查询，在`https://fanyi.baidu.com/v2transapi?xxx`的form表单提交中应该有一个`token`字段，在Cookies中应该有一个名字为`BAIDUID_BFESS`的cookie, 将它们的值分别替换掉`plugin/baidu.py`文件顶部的`TOKEN`和`BAIDUID_BFESS`变量。 替换之后再次尝试。
