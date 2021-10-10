@@ -252,7 +252,7 @@ function! s:get_visual_select()
         let l:a_save = @a
         silent! normal! gv"ay
         if len(@a) > 0 && g:translator_outputype == 'echo'
-            silent! echo @a."\n"
+            redraw!
         endif
         return @a
     finally
