@@ -82,8 +82,8 @@ function! s:create_popup(words, result)
         let l:winid = popup_create([a:words, '------------------------------------------------------------------', a:result], l:options)
     else
         let l:winid = popup_create([a:result], l:options)
-    call setbufvar(winbufnr(l:winid), '&filetype', 'text')
     endif
+    call setbufvar(winbufnr(l:winid), '&filetype', 'text')
 endfunction
 
 function! TranslateCallback(chan, msg)
@@ -91,9 +91,15 @@ function! TranslateCallback(chan, msg)
     if has_key(s:channel_map, l:channel_id)
         if g:translator_outputype == 'echo'
             if s:channel_map[l:channel_id]['is_echo']
-                echo s:channel_map[l:channel_id]['words'].': '.a:msg
+                let l:tmp = s:channel_map[l:channel_id]['words'].': '.a:msg
             else
-                echo a:msg
+                let l:tmp = a:msg
+            endif
+            if len(l:tmp) > 200
+                silent! execute 'cexpr "'.l:tmp.'"'
+                silent! execute 'copen'
+            else
+                echo l:tmp
             endif
         else
             call s:create_popup(s:channel_map[l:channel_id]['words'], a:msg)
@@ -165,9 +171,15 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
                     if !a:is_replace
                         if g:translator_outputype == 'echo'
                             if l:is_echo
-                                echo a:words.': '.l:res
+                                let l:tmp = a:words.': '.l:res
                             else
-                                echo l:res
+                                let l:tmp = l:res
+                            endif
+                            if len(l:tmp) > 200
+                                silent! execute 'cexpr "'.l:tmp.'"'
+                                silent! execute 'copen'
+                            else
+                                echo l:tmp
                             endif
                         else
                             call s:create_popup(a:words, l:res)
@@ -192,9 +204,15 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
         if !a:is_replace
             if  g:translator_outputype == 'echo'
                 if l:is_echo
-                    echo a:words.': '.l:res
+                    let l:tmp = a:words.': '.l:res
                 else
-                    echo l:res
+                    let l:tmp = l:res
+                endif
+                if len(l:tmp) > 200
+                    silent! execute  'cexpr "'.l:tmp.'"'
+                    silent! execute 'copen'
+                else
+                    echo l:tmp
                 endif
             else
                 call s:create_popup(a:words, l:res)
@@ -226,15 +244,15 @@ function! s:cursor_translate()
 endfunction
 
 function! s:visual_translate()
-    call s:translate(s:get_visual_select(1), 0, 0, 0)
+    call s:translate(s:get_visual_select(), 0, 0, 0)
 endfunction
 
-function! s:get_visual_select(is_echo)
+function! s:get_visual_select()
     try
         let l:a_save = @a
         silent! normal! gv"ay
-        if len(@a) > 0 && a:is_echo && g:translator_outputype == 'echo'
-            echo @a."\n"
+        if len(@a) > 0 && g:translator_outputype == 'echo'
+            silent! echo @a."\n"
         endif
         return @a
     finally
@@ -249,9 +267,9 @@ function! s:_enshrine_words(arg,...)
         let l:word = a:arg
     endif
     if len(a:000) > 0
-        let l:word = s:get_visual_select(1)
+        let l:word = s:get_visual_select()
     endif
-    if len(l:word) > 500
+    if len(l:word) > 1000
         echo '待收藏词太长'
         return
     endif
@@ -286,7 +304,7 @@ function! s:after_write_enshrine_file()
 endfunction
 
 function! s:replace_translate()
-    let l:text = s:get_visual_select(0)
+    let l:text = s:get_visual_select()
     let reg_tmp = @a
     let @a = s:translate(l:text, 0, 0, 1)
     silent! normal! gv"ap
