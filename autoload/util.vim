@@ -1,6 +1,3 @@
-autocmd! BufWritePre *.tdata set fileencoding=utf-8
-autocmd! BufWinEnter *.tdata match  Conceal /[\u0001]/
-
 function! util#base64(s)
     if has('python')
         let @b = a:s

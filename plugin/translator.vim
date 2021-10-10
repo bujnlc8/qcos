@@ -319,5 +319,7 @@ command! -nargs=? Te call <SID>enshrine_words(<q-args>)
 command! Tee call <SID>enshrine_edit()
 command! Tev call <SID>enshrine_wordsv()
 autocmd! BufWritePost *.tdata :call <SID>after_write_enshrine_file()
+autocmd! BufWinEnter *.tdata match  Conceal /[\u0001]/
+autocmd! BufWritePre *.tdata set fileencoding=utf-8
 highlight TranslatorBorder ctermfg=37 guifg=#459d90
 highlight TranslatorHi term=bold ctermfg=246 guifg=#898f9e
