@@ -212,7 +212,10 @@ def _get_result(query, is_zh=''):
                 detail = res['dict_result']['zdict']['detail']
                 if detail['chenyu']:
                     c = detail['chenyu']
-                    result.append('\n'.join(['pinyin: '+ c['pinyin'], '释义: ' + c['explain'], '出处: '+ c['from ']]))
+                    if 'from ' in c:
+                        result.append('\n'.join(['pinyin: '+ c['pinyin'], '释义: ' + c['explain'], '出处: '+ c['from ']]))
+                    else:
+                        result.append('\n'.join(['pinyin: '+ c['pinyin'], '释义: ' + c['explain']]))
                 elif detail['means']:
                     m = detail['means'][0]
                     result.append('pinyin: '+ m['pinyin'])
