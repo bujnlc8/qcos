@@ -36,6 +36,8 @@ OR
 
 *  `let g:translator_channel='youdao'`，查询通道，默认`youdao`, 也可切到`baidu`。
 
+* `let:g:translator_outputype='popup'`, 结果输出方式，如果支持弹窗（vim-8.2及以上）默认弹窗展示，否则输出到底部，也可以设置成`echo`显式开启输出到底部，弹窗模式下按`z`关闭弹窗。
+
 
 ## 后记
 

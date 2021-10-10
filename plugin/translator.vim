@@ -1,5 +1,20 @@
 let s:current_path = expand('<sfile>:p:h')
 
+let s:has_popup = has('textprop') && has('patch-8.2.0286')
+
+if !exists('g:translator_outputype')
+    if s:has_popup
+        let g:translator_outputype = 'popup'
+    else
+        let g:translator_outputype = 'echo'
+    endif
+endif
+
+if g:translator_outputype == 'popup' && !s:has_popup
+    echo 'not support popup, `g:translator_outputype` will be changed to `echo`'
+    let g:translator_outputype = 'echo'
+endif
+
 if !exists('g:translator_channel')
     let g:translator_channel = 'youdao'
 endif
@@ -46,14 +61,47 @@ function! s:do_cache(md5, s)
     call writefile([a:s], l:pdir.'/'.a:md5)
 endfunction
 
+function! s:popup_filter(winid, key)
+    if a:key == 'z'
+        call popup_close(a:winid)
+    endif
+endfunction
+
+function! s:create_popup(words, result)
+    call popup_clear()
+    let l:options = {
+                \'maxwidth': 66,
+                \'minwidth': 20,
+                \'padding': [0, 0, 0, 0],
+                \'border': [1, 1, 1, 1],
+                \'filter': function('s:popup_filter'),
+                \'borderhighlight': ['TranslatorBorder'],
+                \'highlight': 'TranslatorHi',
+                \}
+    if len(a:words) < 132
+        let l:winid = popup_create([a:words, '------------------------------------------------------------------', a:result], l:options)
+    else
+        let l:winid = popup_create([a:result], l:options)
+    call setbufvar(winbufnr(l:winid), '&filetype', 'text')
+    endif
+endfunction
+
 function! TranslateCallback(chan, msg)
-    echom a:msg
-    if g:translator_cache
-        let l:channel_id = matchstr(string(a:chan), '[0-9]\+')
-        if has_key(s:channel_map, l:channel_id)
-            call s:do_cache(s:channel_map[l:channel_id], a:msg)
-            unlet s:channel_map[l:channel_id]
+    let l:channel_id = matchstr(string(a:chan), '[0-9]\+')
+    if has_key(s:channel_map, l:channel_id)
+        if g:translator_outputype == 'echo'
+            if s:channel_map[l:channel_id]['is_echo']
+                echo s:channel_map[l:channel_id]['words'].': '.a:msg
+            else
+                echo a:msg
+            endif
+        else
+            call s:create_popup(s:channel_map[l:channel_id]['words'], a:msg)
         endif
+        if g:translator_cache
+            call s:do_cache(s:channel_map[l:channel_id]['md5'], a:msg)
+        endif
+        unlet s:channel_map[l:channel_id]
     endif
 endfunction
 
@@ -100,6 +148,10 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
         return
     endif
     let l:base64 = util#base64(a:words)
+    let l:is_echo = a:is_echo
+    if g:translator_outputype == 'popup'
+        let l:is_echo = 0
+    endif
     let l:md5 = ''
     if g:translator_cache
         let l:md5 = util#md5(l:base64)
@@ -111,7 +163,15 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
                 if filereadable(l:path)
                     let l:res = readfile(l:path)[0]
                     if !a:is_replace
-                        echo l:res
+                        if g:translator_outputype == 'echo'
+                            if l:is_echo
+                                echo a:words.': '.l:res
+                            else
+                                echo l:res
+                            endif
+                        else
+                            call s:create_popup(a:words, l:res)
+                        endif
                     endif
                     if a:do_enshrine && len(l:res) > 0 && match(l:res, 'Err:') == -1
                         call s:do_enshrine(a:words, l:res)
@@ -122,17 +182,23 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
             endif
         endif
     endif
-    let l:cmd = 'python3 '.s:translator_file.' '.l:base64.' '.a:is_echo
+    let l:cmd = 'python3 '.s:translator_file.' '.l:base64
     if !a:is_replace && !a:do_enshrine && exists('*job_start') && ! has('gui_macvim')
         let l:job = job_start(l:cmd, {'out_cb': 'TranslateCallback', 'err_cb': 'TranslateCallback', 'mode': 'raw'})
-        if g:translator_cache
-            let l:channel_id = matchstr(string(job_getchannel(l:job)), '[0-9]\+')
-            let s:channel_map[l:channel_id] = l:md5
-        endif
+        let l:channel_id = matchstr(string(job_getchannel(l:job)), '[0-9]\+')
+        let s:channel_map[l:channel_id] = {'md5': l:md5, 'words': a:words, 'is_echo': l:is_echo}
     else
         let l:res = system(l:cmd)
         if !a:is_replace
-            echo l:res
+            if  g:translator_outputype == 'echo'
+                if l:is_echo
+                    echo a:words.': '.l:res
+                else
+                    echo l:res
+                endif
+            else
+                call s:create_popup(a:words, l:res)
+            endif
         endif
         if g:translator_cache
             call s:do_cache(l:md5, l:res)
@@ -145,10 +211,14 @@ function! s:translate(words, is_echo, do_enshrine, is_replace)
     endif
 endfunction
 
-function! s:input_translate()
-    let l:word = input('Enter the word: ')
-    redraw!
-    call s:translate(l:word, 1, 0, 0)
+function! s:input_translate(arg)
+    if len(a:arg) > 0
+        call s:translate(a:arg, 1, 0, 0)
+    else
+        let l:word = input('Enter the word: ')
+        redraw!
+        call s:translate(l:word, 1, 0, 0)
+    endif
 endfunction
 
 function! s:cursor_translate()
@@ -163,7 +233,7 @@ function! s:get_visual_select(is_echo)
     try
         let l:a_save = @a
         silent! normal! gv"ay
-        if len(@a) > 0 && a:is_echo
+        if len(@a) > 0 && a:is_echo && g:translator_outputype == 'echo'
             echo @a."\n"
         endif
         return @a
@@ -223,13 +293,13 @@ function! s:replace_translate()
     let @a = reg_tmp
 endfunction
 
-command! Ti call <SID>input_translate()
+command! -nargs=? Ti call <SID>input_translate(<q-args>)
 command! Tc call <SID>cursor_translate()
 command! -range Tv call <SID>visual_translate()
 command! -range Tr call <SID>replace_translate()
 command! -nargs=? Te call <SID>enshrine_words(<q-args>)
 command! Tee call <SID>enshrine_edit()
 command! Tev call <SID>enshrine_wordsv()
-autocmd! BufWritePre *.tdata set fileencoding=utf-8
 autocmd! BufWritePost *.tdata :call <SID>after_write_enshrine_file()
-autocmd! BufWinEnter *.tdata match  Conceal /[\u0001]/
+highlight TranslatorBorder ctermfg=37 guifg=#459d90
+highlight TranslatorHi term=bold ctermfg=246 guifg=#898f9e

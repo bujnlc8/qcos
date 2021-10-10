@@ -50,17 +50,16 @@ params = (
 )
 
 
-def get_result(query, echo=0):
+def get_result(query):
     query = base64.b64decode(query).decode('utf-8')
-    if echo:
-        return '{}: {}'.format(query, _get_result(query))
     return _get_result(query)
 
 
 def _get_result(query):
     t = int(time.time() * 1000)
     salt = t+random.randint(1, 10)
-    sign = hashlib.md5(str('fanyideskweb{}{}Y2FYu%TNSbMCxc3t2u^XT'.format(query, salt)).encode('utf-8')).hexdigest()
+    sign = hashlib.md5(str('fanyideskweb{}{}Y2FYu%TNSbMCxc3t2u^XT'.format(
+        query, salt)).encode('utf-8')).hexdigest()
     data = {
         'i': query,
         'from': 'AUTO',
@@ -115,9 +114,8 @@ def _get_result(query):
     except Exception as e:
         return 'Err:产生异常: %s' % e
 
+
 if __name__ == '__main__':
-    if len(argv) >= 3:
-        stdout.write(str(get_result(argv[1], int(argv[2]))))
-    elif len(argv) >= 2:
+    if len(argv) >= 2:
         stdout.write(str(get_result(argv[1])))
     stdout.flush()
