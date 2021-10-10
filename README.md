@@ -10,7 +10,7 @@ OR
 
 <!---->
 
-    Plug 'linghaihui/vim-translator'
+    Plug 'bujnlc8/vim-translator'
 
 ## 命令
 
