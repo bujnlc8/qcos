@@ -95,7 +95,7 @@ endfunction
 function! TranslateCallback(chan, msg)
     let l:channel_id = matchstr(string(a:chan), '[0-9]\+')
     if has_key(s:channel_map, l:channel_id)
-        if g:translator_outputype == 'echo' || len(a:msg) > 2000
+        if g:translator_outputype == 'echo' || len(a:msg) > 4000
             call s:do_echo(s:channel_map[l:channel_id]['words'], a:msg, s:channel_map[l:channel_id]['is_echo'])
         else
             call s:create_popup(s:channel_map[l:channel_id]['words'], a:msg)
@@ -179,7 +179,7 @@ function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
                 if filereadable(l:path)
                     let l:res = readfile(l:path)[0]
                     if !a:is_replace
-                        if g:translator_outputype == 'echo' || len(l:res) > 2000
+                        if g:translator_outputype == 'echo' || len(l:res) > 4000
                             call s:do_echo(a:words, l:res, l:is_echo)
                         else
                             call s:create_popup(a:words, l:res)
@@ -206,7 +206,7 @@ function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
     else
         let l:res = system(l:cmd)
         if !a:is_replace
-            if g:translator_outputype == 'echo' || len(l:res) > 2000
+            if g:translator_outputype == 'echo' || len(l:res) > 4000
                 call s:do_echo(a:words, l:res, l:is_echo)
             else
                 call s:create_popup(a:words, l:res)
