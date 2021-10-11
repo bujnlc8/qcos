@@ -90,18 +90,8 @@ endfunction
 function! TranslateCallback(chan, msg)
     let l:channel_id = matchstr(string(a:chan), '[0-9]\+')
     if has_key(s:channel_map, l:channel_id)
-        if g:translator_outputype == 'echo'
-            if s:channel_map[l:channel_id]['is_echo']
-                let l:tmp = s:channel_map[l:channel_id]['words'].":\n".a:msg
-            else
-                let l:tmp = a:msg
-            endif
-            if len(l:tmp) > 200
-                silent! execute 'cexpr "'.l:tmp.'"'
-                silent! execute 'copen'
-            else
-                echo substitute(l:tmp, '\n', ' ', 'g')
-            endif
+        if g:translator_outputype == 'echo' || len(a:msg) > 4000
+            call s:do_echo(s:channel_map[l:channel_id]['words'], a:msg, s:channel_map[l:channel_id]['is_echo'])
         else
             call s:create_popup(s:channel_map[l:channel_id]['words'], a:msg)
         endif
@@ -149,6 +139,20 @@ endfunction
 
 let s:channel_map = {}
 
+function! s:do_echo(words, res, is_echo)
+    if a:is_echo
+        let l:tmp = a:words.":\n".a:res
+    else
+        let l:tmp = a:res
+    endif
+    if len(l:tmp) > 200
+        silent! execute 'cexpr "'.l:tmp.'"'
+        silent! execute 'copen'
+    else
+        echo substitute(l:tmp, '\n', ' ', 'g')
+    endif
+endfunction
+
 function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
     if len(substitute(a:words, '\s', '', 'g')) == 0
         echo '输入为空'
@@ -170,18 +174,8 @@ function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
                 if filereadable(l:path)
                     let l:res = readfile(l:path)[0]
                     if !a:is_replace
-                        if g:translator_outputype == 'echo'
-                            if l:is_echo
-                                let l:tmp = a:words.":\n".l:res
-                            else
-                                let l:tmp = l:res
-                            endif
-                            if len(l:tmp) > 200
-                                silent! execute 'cexpr "'.l:tmp.'"'
-                                silent! execute 'copen'
-                            else
-                                echo substitute(l:tmp, '\n', ' ', 'g')
-                            endif
+                        if g:translator_outputype == 'echo' || len(l:res) > 4000
+                            call s:do_echo(a:words, l:res, l:is_echo)
                         else
                             call s:create_popup(a:words, l:res)
                         endif
@@ -207,18 +201,8 @@ function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
     else
         let l:res = system(l:cmd)
         if !a:is_replace
-            if  g:translator_outputype == 'echo'
-                if l:is_echo
-                    let l:tmp = a:words.":\n".l:res
-                else
-                    let l:tmp = l:res
-                endif
-                if len(l:tmp) > 200
-                    silent! execute  'cexpr "'.l:tmp.'"'
-                    silent! execute 'copen'
-                else
-                    echo substitute(l:tmp, '\n', ' ', 'g')
-                endif
+            if g:translator_outputype == 'echo' || len(l:res) > 4000
+                call s:do_echo(a:words, l:res, l:is_echo)
             else
                 call s:create_popup(a:words, l:res)
             endif
@@ -248,7 +232,7 @@ function! s:input_translate_zh(arg)
     if len(a:arg) > 0
         call s:translate(a:arg, 1, 0, 0, 1)
     else
-        let l:word = input('输入查询的单词: ')
+        let l:word = input('输入查询的中文: ')
         redraw!
         call s:translate(l:word, 1, 0, 0, 1)
     endif
