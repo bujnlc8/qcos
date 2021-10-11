@@ -16,6 +16,8 @@ OR
 
 *   `:Ti`, 支持在底部输入框输入翻译，可以在`.vimrc`加入`noremap <leader>ti :<C-u>Ti<CR>`支持快捷键输入。
 
+*   `:Ty`, 从粘贴板中获取文字进行翻译(匿名寄存器中""), 可以在`.vimrc`加入`noremap <leader>ty :<C-u>Ty<CR>`支持快捷键输入。
+
 *   `:Tc`, 支持翻译光标处单词，可以在`.vimrc`加入`noremap <leader>tc :<C-u>Tc<CR>`支持快捷键。
 
 *   `:Tv`, 支持在visual模式下选中翻译，可以在`.vimrc`加入`vnoremap <leader>tv :<C-u>Tv<CR>`支持快捷键。

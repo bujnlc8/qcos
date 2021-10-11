@@ -320,6 +320,7 @@ function! s:replace_translate()
 endfunction
 
 command! -nargs=? Ti call <SID>input_translate(<q-args>)
+command! -nargs=? Ty call <SID>input_translate(<q-args>.@")
 command! -nargs=? Tz call <SID>input_translate_zh(<q-args>)
 command! Tc call <SID>cursor_translate()
 command! -range Tv call <SID>visual_translate()
