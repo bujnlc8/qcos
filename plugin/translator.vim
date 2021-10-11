@@ -69,7 +69,7 @@ endfunction
 
 function! s:create_popup(words, result)
     call popup_clear()
-    if len(result) > 2000
+    if len(a:result) > 2000
         let l:max_wdith = 132
     else
         let l:max_wdith = 66
