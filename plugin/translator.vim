@@ -11,7 +11,7 @@ if !exists('g:translator_outputype')
 endif
 
 if g:translator_outputype == 'popup' && !s:has_popup
-    echo 'not support popup, `g:translator_outputype` will be changed to `echo`'
+    echoerr '[Translator] not support popup, `g:translator_outputype` will be changed to `echo`'
     let g:translator_outputype = 'echo'
 endif
 
@@ -20,7 +20,7 @@ if !exists('g:translator_channel')
 endif
 
 if g:translator_channel != 'youdao' &&  g:translator_channel != 'baidu'
-    echo 'g:translator_channel 配置错误'
+    echoerr '[Translator] g:translator_channel 配置错误'
 endif
 
 let s:translator_file= s:current_path . '/'.g:translator_channel.'.py'
@@ -159,6 +159,10 @@ function! s:do_echo(words, res, is_echo)
 endfunction
 
 function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
+    if !executable('python3')
+        echoerr '[Translator] [Err]: python3 is not installed!'
+        return
+    endif
     if len(substitute(a:words, '\s', '', 'g')) == 0
         echo '输入为空'
         return

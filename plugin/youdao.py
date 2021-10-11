@@ -10,22 +10,7 @@ import random
 import re
 import time
 from sys import argv, stdout
-
-try:
-    import requests
-except ModuleNotFoundError:
-    os.system(
-        'pip3 install requests -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/')
-    import requests
-
-
-cookies = {
-    'JSESSIONID': 'abcRb-rKlRPSh9oLFEuXx',
-    'OUTFOX_SEARCH_USER_ID': '-227182269@10.108.160.100',
-    'OUTFOX_SEARCH_USER_ID_NCOO': '1812441542.1910617',
-    'DICT_UGC': 'be3af0da19b5c5e6aa4e17bd8d90b28a|',
-    '_ntes_nnid': '80d69e18fb00c654febe4f151e40e0f0,1633526192627',
-}
+from urllib import error, parse, request
 
 headers = {
     'Connection': 'keep-alive',
@@ -43,11 +28,12 @@ headers = {
     'Sec-Fetch-Dest': 'empty',
     'Referer': 'https://fanyi.youdao.com/',
     'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Cookie': '',
 }
 
-params = (
-    ('smartresult', ['dict', 'rule']),
-)
+Cookie = 'OUTFOX_SEARCH_USER_ID=1485736359@10.108.160.102; JSESSIONID=aaaJWUsucwEMl70lf-QXx; OUTFOX_SEARCH_USER_ID_NCOO=1086609560.8868542; '
+
+Url = 'https://fanyi.youdao.com/translate_o?smartresult=dict&smartresult=rule'
 
 
 def get_result(query):
@@ -75,19 +61,14 @@ def _get_result(query):
         'keyfrom': 'fanyi.web',
         'action': 'FY_BY_REALTlME'
     }
-    cookies['___rl__test__cookies'] = str(t)
+    headers['Cookie'] = Cookie + '___rl__test__cookies='+str(t)
     try:
-        res = requests.post(
-            'https://fanyi.youdao.com/translate_o',
-            headers=headers,
-            params=params,
-            cookies=cookies,
-            data=data,
-            timeout=15,
-        )
-        if res.status_code != 200:
+        req = request.Request(Url, data=parse.urlencode(
+            data).encode('utf-8'), headers=headers)
+        res = request.urlopen(req)
+        if res.getcode() != 200:
             return 'Err:返回异常[{}]'.format(res.status_code)
-        res = res.json()
+        res = json.loads(res.read())
         if res['errorCode'] != 0:
             if res['errorCode'] == 40:
                 return 'Err:无结果'
@@ -109,7 +90,7 @@ def _get_result(query):
         if result:
             return '\n'.join(result)
         return 'Err:无结果'
-    except requests.RequestException:
+    except error.HTTPError:
         return 'Err:请求异常'
     except Exception as e:
         return 'Err:产生异常: %s' % e

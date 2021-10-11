@@ -2,24 +2,19 @@
 
 import base64
 import ctypes
-import re
+import json
 import os
+import re
 from sys import argv, stdout
+from urllib import error, parse, request
 
 BAIDUID_BFESS = '74229A386EF1FF9EF60D2B5EB95E0512:FG=1'
 
 TOKEN = '57685321fd02516a5b10789b4aa678a9'
 
-try:
-    import requests
-except ModuleNotFoundError:
-    os.system(
-        'pip3 install requests -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/')
-    import requests
-
 F = '+-a^+6'
 D = '+-3^+b+-f'
-d = ['320305','131321201']
+d = ['320305', '131321201']
 
 
 def unsigned_right_shitf(n, i):
@@ -138,12 +133,6 @@ def sign(r):
     return str(p) + '.' + str(p ^ m)
 
 
-cookies = {
-    'BAIDUID_BFESS': BAIDUID_BFESS,
-    'REALTIME_TRANS_SWITCH': '1',
-    'FANYI_WORD_SWITCH': '1',
-}
-
 headers = {
     'Connection': 'keep-alive',
     'sec-ch-ua': '"Google Chrome";v="93", " Not;A Brand";v="99", "Chromium";v="93"',
@@ -160,6 +149,7 @@ headers = {
     'Sec-Fetch-Dest': 'empty',
     'Referer': 'https://fanyi.baidu.com/',
     'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Cookie': 'BAIDUID_BFESS='+BAIDUID_BFESS + '; REALTIME_TRANS_SWITCH=1; FANYI_WORD_SWITCH=1'
 }
 
 
@@ -186,22 +176,15 @@ def _get_result(query, is_zh=''):
         'token': TOKEN,
         'domain': 'common'
     }
-    params = (
-        ('from', fr),
-        ('to', to),
-    )
     try:
-        res = requests.post(
-            'https://fanyi.baidu.com/v2transapi',
-            headers=headers,
-            params=params,
-            cookies=cookies,
-            data=data,
-            timeout=15,
-        )
-        if res.status_code != 200:
+        url = 'https://fanyi.baidu.com/v2transapi?' + \
+            parse.urlencode({'from': fr, 'to': to})
+        req = request.Request(url, data=parse.urlencode(
+            data).encode('utf-8'), headers=headers)
+        res = request.urlopen(req)
+        if res.getcode() != 200:
             return 'Err:返回异常[{}]'.format(res.status_code)
-        res = res.json()
+        res = json.loads(res.read())
         if 'errno' in res:
             if res['errno'] == 998:
                 return 'Err:token失效'
@@ -213,12 +196,14 @@ def _get_result(query, is_zh=''):
                 if detail['chenyu']:
                     c = detail['chenyu']
                     if 'from ' in c:
-                        result.append('\n'.join(['pinyin: '+ c['pinyin'], '释义: ' + c['explain'], '出处: '+ c['from ']]))
+                        result.append('\n'.join(
+                            ['pinyin: ' + c['pinyin'], '释义: ' + c['explain'], '出处: ' + c['from ']]))
                     else:
-                        result.append('\n'.join(['pinyin: '+ c['pinyin'], '释义: ' + c['explain']]))
+                        result.append(
+                            '\n'.join(['pinyin: ' + c['pinyin'], '释义: ' + c['explain']]))
                 elif detail['means']:
                     m = detail['means'][0]
-                    result.append('pinyin: '+ m['pinyin'])
+                    result.append('pinyin: ' + m['pinyin'])
                     for x in m['exp'][0]['des']:
                         result.append(x['main'])
         else:
@@ -235,10 +220,11 @@ def _get_result(query, is_zh=''):
         if result:
             return '\n'.join(result)
         return 'Err:无结果'
-    except requests.RequestException:
+    except error.HTTPError:
         return 'Err:请求异常'
     except Exception as e:
         return 'Err:产生异常: %s' % e
+
 
 if __name__ == '__main__':
     if len(argv) == 2:
