@@ -1,5 +1,9 @@
 # 一个有用的翻译VIM插件, 提供有道和百度两种选择
 
+先上图：
+
+![](https://s3.bmp.ovh/imgs/2021/10/9e32b13bc6936ca8.jpg)
+
 ## 安装
 
 *   将代码clone到`~/.vim/plugin`下面即可。
