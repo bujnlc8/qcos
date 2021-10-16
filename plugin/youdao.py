@@ -2,12 +2,9 @@
 from __future__ import unicode_literals
 
 import base64
-import ctypes
 import hashlib
 import json
-import os
 import random
-import re
 import time
 from sys import argv, stdout
 from urllib import error, parse, request
@@ -43,7 +40,7 @@ def get_result(query):
 
 def _get_result(query):
     t = int(time.time() * 1000)
-    salt = t+random.randint(1, 10)
+    salt = t + random.randint(1, 10)
     sign = hashlib.md5(str('fanyideskweb{}{}Y2FYu%TNSbMCxc3t2u^XT'.format(
         query, salt)).encode('utf-8')).hexdigest()
     data = {
@@ -61,13 +58,13 @@ def _get_result(query):
         'keyfrom': 'fanyi.web',
         'action': 'FY_BY_REALTlME'
     }
-    headers['Cookie'] = Cookie + '___rl__test__cookies='+str(t)
+    headers['Cookie'] = Cookie + '___rl__test__cookies=' + str(t)
     try:
         req = request.Request(Url, data=parse.urlencode(
             data).encode('utf-8'), headers=headers)
         res = request.urlopen(req)
         if res.getcode() != 200:
-            return 'Err:返回异常[{}]'.format(res.status_code)
+            return 'Err:返回异常[{}]'.format(res.getcode())
         res = json.loads(res.read())
         if res['errorCode'] != 0:
             if res['errorCode'] == 40:

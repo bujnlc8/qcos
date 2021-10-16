@@ -3,10 +3,10 @@
 import base64
 import ctypes
 import json
-import os
 import re
 from sys import argv, stdout
 from urllib import error, parse, request
+import time
 
 BAIDUID_BFESS = '74229A386EF1FF9EF60D2B5EB95E0512:FG=1'
 
@@ -28,7 +28,7 @@ def unsigned_right_shitf(n, i):
 
 def int_overflow(val):
     maxint = 2147483647
-    if not -maxint-1 <= val <= maxint:
+    if not -maxint - 1 <= val <= maxint:
         val = (val + (maxint + 1)) % (2 * (maxint + 1)) - maxint - 1
     return val
 
@@ -42,7 +42,7 @@ def a(r):
 def n(r, o):
     t = 0
     while t < len(o) - 2:
-        a = o[t+2]
+        a = o[t + 2]
         if a >= 'a':
             a = ord(a) - 87
         else:
@@ -64,7 +64,7 @@ def sign(r):
     if o is None:
         t = len(r)
         if t > 30:
-            r = '' + r[:10] + r[t//2-5:5 + t//2] + r[-10:]
+            r = '' + r[:10] + r[t // 2 - 5: 5 + t // 2] + r[-10:]
     else:
         e = re.split(r'/[\ud800-\udbff][\udc00-\udfff]/', r)
         C = 0
@@ -78,9 +78,7 @@ def sign(r):
             C += 1
         g = len(f)
         if g > 30:
-            r = ''.join(f[:10]) + ''.join(f[g // 2: g//2 + 5]) + \
-                ''.join(f[-10:])
-    l = '' + chr(103) + chr(116) + chr(107)
+            r = ''.join(f[:10]) + ''.join(f[g // 2: g // 2 + 5]) + ''.join(f[-10:])
     try:
         m = int(d[0])
     except:
@@ -102,8 +100,8 @@ def sign(r):
                 S[c] = A >> 6 | 192
                 c += 1
             else:
-                if 55296 == (64512 & A) and v+1 < len(r) and 56320 == (64512 & ord(r[v+1])):
-                    A = 65536 + ((1023 & A) << 10) + (1023 & ord(r[v+1]))
+                if 55296 == (64512 & A) and v + 1 < len(r) and 56320 == (64512 & ord(r[v + 1])):
+                    A = 65536 + ((1023 & A) << 10) + (1023 & ord(r[v + 1]))
                     v += 1
                     S[c] = A >> 18 | 240
                     c += 1
@@ -149,13 +147,32 @@ headers = {
     'Sec-Fetch-Dest': 'empty',
     'Referer': 'https://fanyi.baidu.com/',
     'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Cookie': 'BAIDUID_BFESS='+BAIDUID_BFESS + '; REALTIME_TRANS_SWITCH=1; FANYI_WORD_SWITCH=1'
+    'Cookie': 'BAIDUID_BFESS=' + BAIDUID_BFESS + '; REALTIME_TRANS_SWITCH=1; FANYI_WORD_SWITCH=1'
 }
 
 
 def get_result(query, is_zh=''):
     query = base64.b64decode(query).decode('utf-8')
     return _get_result(query, is_zh)
+
+
+def get_zh(word):
+    url = 'https://zd.hwxnet.com/search.do?{}'.format(
+        parse.urlencode({'keyword': word, 'timestamp': int(1000 * time.time())}))
+    req = request.Request(url)
+    res = request.urlopen(req)
+    if res.getcode() != 200:
+        return 'Err:返回异常[{}]'.format(res.getcode())
+    res = res.read().decode('utf-8')
+    res = re.search(r'●.*', res)
+    if not res:
+        return 'Err:无结果'
+    res = res.group(0)
+    res = re.sub(r'<[a-z \s " \/ = \. A-Z 0-9 ; \( \) \\ \' : _]*>', '', res)
+    res = [x.replace('◎', '\n ◎') for x in res.split('●') if x]
+    if not res:
+        return 'Err:无结果'
+    return '\n'.join(res)
 
 
 def _get_result(query, is_zh=''):
@@ -183,7 +200,7 @@ def _get_result(query, is_zh=''):
             data).encode('utf-8'), headers=headers)
         res = request.urlopen(req)
         if res.getcode() != 200:
-            return 'Err:返回异常[{}]'.format(res.status_code)
+            return 'Err:返回异常[{}]'.format(res.getcode())
         res = json.loads(res.read())
         if 'errno' in res:
             if res['errno'] == 998:
@@ -219,6 +236,8 @@ def _get_result(query, is_zh=''):
                     result.append(x['dst'])
         if result:
             return '\n'.join(result)
+        if is_zh:
+            return get_zh(query)
         return 'Err:无结果'
     except error.HTTPError:
         return 'Err:请求异常'

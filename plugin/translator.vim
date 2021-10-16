@@ -89,7 +89,7 @@ function! s:create_popup(words, result)
     else
         let l:winid = popup_create(l:result, l:options)
     endif
-    call setbufvar(winbufnr(l:winid), '&filetype', 'text')
+    call setbufvar(winbufnr(l:winid), '&filetype', 'translator')
 endfunction
 
 function! TranslateCallback(chan, msg)
@@ -333,3 +333,4 @@ autocmd! BufWinEnter *.tdata match  Conceal /[\u0001]/
 autocmd! BufWritePre *.tdata set fileencoding=utf-8
 highlight TranslatorBorder ctermfg=37 guifg=#459d90
 highlight TranslatorHi term=bold ctermfg=246 guifg=#898f9e
+au Filetype translator set isprint=@,1-255
