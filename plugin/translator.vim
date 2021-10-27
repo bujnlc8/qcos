@@ -77,31 +77,35 @@ function! s:create_popup(words, result)
     let l:options = {
                 \'maxwidth': l:max_wdith,
                 \'minwidth': 20,
+                \'border': [1,1,1,1],
                 \'padding': [0, 0, 0, 0],
-                \'border': [1, 1, 1, 1],
                 \'filter': function('s:popup_filter'),
-                \'borderhighlight': ['TranslatorBorder'],
                 \'highlight': 'TranslatorHi',
+                \'borderhighlight': ['TranslatorBorder'],
+                \'zindex': 100,
                 \}
-    let l:result = split(a:result, "\n")
+    let l:result = []
+    for x in split(a:result, "\n")
+        call add(l:result, substitute(x, '\s', '', 'g'))
+    endfor
     if len(a:words) < 132
         let l:winid = popup_create([a:words, '------------------------------------------------------------------'] + l:result, l:options)
     else
         let l:winid = popup_create(l:result, l:options)
     endif
-    call setbufvar(winbufnr(l:winid), '&filetype', 'translator')
 endfunction
 
 function! TranslateCallback(chan, msg)
     let l:channel_id = matchstr(string(a:chan), '[0-9]\+')
+    let l:msg = substitute(a:msg, '\r', '', 'g')
     if has_key(s:channel_map, l:channel_id)
-        if g:translator_outputype == 'echo' || len(a:msg) > 4000
-            call s:do_echo(s:channel_map[l:channel_id]['words'], a:msg, s:channel_map[l:channel_id]['is_echo'])
+        if g:translator_outputype == 'echo' || len(l:msg) > 4000
+            call s:do_echo(s:channel_map[l:channel_id]['words'], l:msg, s:channel_map[l:channel_id]['is_echo'])
         else
-            call s:create_popup(s:channel_map[l:channel_id]['words'], a:msg)
+            call s:create_popup(s:channel_map[l:channel_id]['words'], l:msg)
         endif
         if g:translator_cache && !s:channel_map[l:channel_id]['is_zh']
-            call s:do_cache(s:channel_map[l:channel_id]['md5'], a:msg)
+            call s:do_cache(s:channel_map[l:channel_id]['md5'], l:msg)
         endif
         unlet s:channel_map[l:channel_id]
     endif
@@ -146,9 +150,9 @@ let s:channel_map = {}
 
 function! s:do_echo(words, res, is_echo)
     if a:is_echo
-        let l:tmp = a:words.":\n".a:res
+        let l:tmp = a:words.":\n".substitute(a:res, '\r', '', 'g')
     else
-        let l:tmp = a:res
+        let l:tmp = substitute(a:res, '\r', '', 'g')
     endif
     if len(l:tmp) > 200
         silent! execute 'cexpr "'.l:tmp.'"'
@@ -208,7 +212,7 @@ function! s:translate(words, is_echo, do_enshrine, is_replace, is_zh)
         let l:channel_id = matchstr(string(job_getchannel(l:job)), '[0-9]\+')
         let s:channel_map[l:channel_id] = {'md5': l:md5, 'words': a:words, 'is_echo': l:is_echo, 'is_zh': a:is_zh}
     else
-        let l:res = system(l:cmd)
+        let l:res = substitute(system(l:cmd), '\r', '', 'g')
         if !a:is_replace
             if g:translator_outputype == 'echo' || len(l:res) > 4000
                 call s:do_echo(a:words, l:res, l:is_echo)
@@ -329,8 +333,6 @@ command! -nargs=? Te call <SID>enshrine_words(<q-args>)
 command! Tee call <SID>enshrine_edit()
 command! Tev call <SID>enshrine_wordsv()
 autocmd! BufWritePost *.tdata :call <SID>after_write_enshrine_file()
-autocmd! BufWinEnter *.tdata set isprint=@,1-255
 autocmd! BufWritePre *.tdata set fileencoding=utf-8
-highlight TranslatorBorder ctermfg=37 guifg=#459d90
-highlight TranslatorHi term=bold ctermfg=246 guifg=#898f9e
-autocmd! Filetype translator set isprint=@,1-255
+highlight TranslatorBorder ctermfg=37 guifg=#459d90 guibg=#202a31
+highlight TranslatorHi term=bold guifg=#898f9e guibg=#202a31
