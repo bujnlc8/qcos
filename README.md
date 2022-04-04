@@ -1,4 +1,4 @@
-[![Build](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yaml/badge.svg)](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yaml)
+[![qcos](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml/badge.svg?branch=master)](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml)
 
 本包提供腾讯云对象存储(cos) 基本的操作，包括`bucket`创建及删除，对象的上传、下载、删除等。后续有时间会补充其他接口的实现。
 
