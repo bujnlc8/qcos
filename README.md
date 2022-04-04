@@ -5,20 +5,23 @@
 # How to use
 
 ```rust
-use qcos::client::Client;
-use qcos::objects::Objects;
 use qcos::acl::{AclHeader, ObjectAcl};
-use qcos::request::ErrorNo;
-use mime;
+use qcos::client::Client;
+use qcos::objects::{mime, ErrNo, Objects};
 
-fn main(){
-    let client = Client::new("Your secrect id", "Your secrect key", "bucket name", "region");
+fn main() {
+    let client = Client::new(
+        "Your secrect id",
+        "Your secrect key",
+        "bucket name",
+        "region",
+    );
     let mut acl_header = AclHeader::new();
-    acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
-    let res = client.put_object("Cargo.toml", "Cargo.toml", mime::TEXT_PLAIN_UTF_8, Some(acl_header));
-    if res.error_no == ErrorNo::SUCCESS{
+    acl_header.insert_object_x_cos_acl(ObjectAcl::PublicRead);
+    let res = client.put_object("test.png", "test.png", mime::IMAGE_PNG, Some(acl_header));
+    if res.error_no == ErrNo::SUCCESS {
         println!("success");
-      } else{
+    } else {
         println!("{}", res.error_message);
     }
 }
@@ -33,6 +36,5 @@ insert into your project's cargo.toml block next line
 
 ```
 [dependencies]
-qcos = "0.0.1"
-
+qcos = "0.1.1"
 ```

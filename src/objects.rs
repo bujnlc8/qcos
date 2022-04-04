@@ -1,9 +1,9 @@
 //! object操作相关
 use crate::acl;
 use crate::client;
-use crate::request::{ErrNo, Request, Response};
+pub use crate::request::{ErrNo, Request, Response};
 use crate::signer;
-use mime;
+pub use mime;
 use std::fs;
 use std::io::Cursor;
 
@@ -41,8 +41,30 @@ impl<'a> Objects for client::Client<'a> {
         content_type: mime::Mime,
         acl_header: Option<acl::AclHeader>,
     ) -> Response {
-        let metadata = fs::metadata(path).expect("读取文件失败");
-        let content: Vec<u8> = fs::read(path).expect("读取文件失败");
+        let metadata_r = fs::metadata(path);
+        let metadata;
+        match metadata_r {
+            Ok(e) => metadata = e,
+            Err(e) => {
+                return Response::new(
+                    ErrNo::OTHER,
+                    format!("读取metadata失败: {}", e),
+                    "".to_string(),
+                );
+            }
+        }
+        let content_r = fs::read(path);
+        let content;
+        match content_r {
+            Ok(e) => content = e,
+            Err(e) => {
+                return Response::new(
+                    ErrNo::OTHER,
+                    format!("读取文件内容失败: {}", e),
+                    "".to_string(),
+                );
+            }
+        }
         let content_length = metadata.len().to_string();
         let mut headers = self.gen_common_headers();
         headers.insert("Content-Type".to_string(), content_type.to_string());
@@ -123,9 +145,25 @@ impl<'a> Objects for client::Client<'a> {
         match resp {
             Ok(e) => {
                 if e.error_no == ErrNo::SUCCESS {
-                    let mut output_file = fs::File::create(file_name).expect("创建文件失败");
-                    std::io::copy(&mut Cursor::new(e.result), &mut output_file)
-                        .expect("下载文件失败");
+                    let output_file_r = fs::File::create(file_name);
+                    let mut output_file;
+                    match output_file_r {
+                        Ok(e) => output_file = e,
+                        Err(e) => {
+                            return Response::new(
+                                ErrNo::OTHER,
+                                format!("创建文件失败: {}", e),
+                                "".to_string(),
+                            );
+                        }
+                    }
+                    if let Err(e) = std::io::copy(&mut Cursor::new(e.result), &mut output_file) {
+                        return Response::new(
+                            ErrNo::OTHER,
+                            format!("下载文件失败: {}", e),
+                            "".to_string(),
+                        );
+                    }
                     return Response::blank_success();
                 }
                 e
