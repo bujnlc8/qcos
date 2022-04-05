@@ -29,6 +29,7 @@ fn main() {
 ```
 如果操作成功，会打印出`success`, 否则会打印出失败原因。
 
+更多的例子请参考[examples](https://github.com/bujnlc8/qcos/tree/master/examples)。
 
 # Installation
 
@@ -36,5 +37,5 @@ insert into your project's cargo.toml block next line
 
 ```
 [dependencies]
-qcos = "0.1.2"
+qcos = "0.1.3"
 ```
