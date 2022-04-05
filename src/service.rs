@@ -3,7 +3,6 @@
 use crate::client::Client;
 use crate::request::Request;
 use crate::request::Response;
-use crate::signer;
 
 pub trait Service {
     fn get_bucket_list(&self) -> Response;
@@ -26,12 +25,7 @@ impl<'a> Service for Client<'a> {
         let host = self.get_host_for_bucket_query();
         let mut headers = self.gen_common_headers();
         headers.insert("Host".to_string(), host);
-        let signature = signer::Signer::new("get", "/", Some(&headers), None).get_signature(
-            self.get_secrect_key(),
-            self.get_secrect_id(),
-            7200,
-        );
-        headers.insert("Authorization".to_string(), signature);
+        headers = self.get_headers_with_auth("get", "/", None, Some(headers), None);
         let resp = Request::get(
             format!("https://{}/", self.get_host_for_bucket_query()).as_str(),
             None,

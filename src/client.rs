@@ -1,4 +1,6 @@
 //! 接口客户端，所有的操作都基于该对象
+use crate::acl::AclHeader;
+use crate::signer::Signer;
 /// 接口请求Client
 /// # Examples
 /// ```
@@ -45,7 +47,7 @@ impl<'a> Client<'a> {
     // 生成通用的request headers, 包含`Host`及`Date`
     pub fn gen_common_headers(&self) -> HashMap<String, String> {
         let mut headers = HashMap::new();
-        headers.insert("Host".to_string(), self.get_host());
+        headers.insert("Host".to_string(), self.get_host().to_string());
         let now_str = Utc::now().format("%a, %d %b %Y %T GMT").to_string();
         headers.insert("Date".to_string(), now_str);
         headers
@@ -68,5 +70,35 @@ impl<'a> Client<'a> {
             return "service.cos.myqcloud.com".to_string();
         }
         format!("cos.{}.myqcloud.com", self.region)
+    }
+
+    // 返回带有`Authorization` 的headers, 如果headers从参数传入, 除添加acl头部之外不会添加其他头
+    // 否则以`gen_common_headers` 返回作为初始值
+    pub fn get_headers_with_auth(
+        &self,
+        method: &str,
+        url_path: &str,
+        acl_header: Option<&AclHeader>,
+        orgin_headers: Option<HashMap<String, String>>,
+        query: Option<&HashMap<String, String>>,
+    ) -> HashMap<String, String> {
+        let mut headers;
+        if let Some(origin_headers) = orgin_headers {
+            headers = origin_headers;
+        } else {
+            headers = self.gen_common_headers();
+        }
+        if let Some(acl_header) = acl_header {
+            for (k, v) in acl_header.get_headers() {
+                headers.insert(k.to_string(), v.to_string());
+            }
+        }
+        let signature = Signer::new(method, url_path, Some(&headers), query).get_signature(
+            self.get_secrect_key(),
+            self.get_secrect_id(),
+            7200,
+        );
+        headers.insert("Authorization".to_string(), signature);
+        headers
     }
 }

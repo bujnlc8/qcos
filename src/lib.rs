@@ -9,7 +9,7 @@
  use mime;
  let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
  /// 上传文件
- let res = client.put_object("Cargo.toml", "Cargo.toml", mime::TEXT_PLAIN_UTF_8, None);
+ let res = client.put_object("Cargo.toml", "Cargo.toml", mime::TEXT_PLAIN_UTF_8, None, false);
  /// 删除文件
  let res = client.delete_object("Cargo.toml");
 ```
