@@ -1,6 +1,6 @@
 [package]
 name = "qcos"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["bujnlc8 <75124771@qq.com>"]
 description = "provide basic interface encapsulation of Tencent Cloud Object Storage (cos)"

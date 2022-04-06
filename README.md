@@ -38,5 +38,5 @@ insert into your project's cargo.toml block next line
 
 ```
 [dependencies]
-qcos = "0.1.3"
+qcos = "0.1.4"
 ```
