@@ -83,7 +83,7 @@ pub trait Objects {
 
 impl<'a> Objects for client::Client<'a> {
     /// 上传本地文件
-    /// 见[文档](https://cloud.tencent.com/document/product/436/7749)
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7749)
     /// # Examples
     /// ```
     /// use qcos::client::Client;
@@ -178,7 +178,7 @@ impl<'a> Objects for client::Client<'a> {
     }
 
     /// 上传二进制流
-    /// 见[文档](https://cloud.tencent.com/document/product/436/7749)
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7749)
     /// # Examples
     /// ```
     /// use qcos::client::Client;
@@ -221,7 +221,7 @@ impl<'a> Objects for client::Client<'a> {
         }
     }
     /// 删除文件
-    /// 见[文档](https://cloud.tencent.com/document/product/436/7743)
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7743)
     /// # Examples
     /// ```
     /// use qcos::client::Client;
@@ -247,7 +247,7 @@ impl<'a> Objects for client::Client<'a> {
     }
 
     /// 下载文件二进制流
-    /// 见[文档](https://cloud.tencent.com/document/product/436/7753)
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7753)
     /// # Examples
     /// ```
     /// use qcos::client::Client;
@@ -271,7 +271,7 @@ impl<'a> Objects for client::Client<'a> {
     }
 
     /// 下载文件到本地
-    /// 见[文档](https://cloud.tencent.com/document/product/436/7753)
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7753)
     /// # Examples
     /// ```
     /// use qcos::client::Client;
@@ -303,6 +303,7 @@ impl<'a> Objects for client::Client<'a> {
         resp
     }
     /// 请求实现初始化分块上传，成功执行此请求后将返回 UploadId，用于后续的 Upload Part 请求
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7746)
     fn put_object_get_upload_id(
         &self,
         key: &str,
@@ -343,6 +344,7 @@ impl<'a> Objects for client::Client<'a> {
     }
 
     /// 分块上传文件
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7750)
     fn put_objet_part(
         &self,
         key: &str,
@@ -381,6 +383,7 @@ impl<'a> Objects for client::Client<'a> {
     }
 
     /// 完成分块上传
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7742)
     fn put_object_complete_part(
         &self,
         key: &str,
@@ -429,6 +432,7 @@ impl<'a> Objects for client::Client<'a> {
     }
 
     /// 终止分块上传，清理文件碎片
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7740)
     fn abort_object_part(&self, key: &str, upload_id: &str) -> Response {
         let url_path = self.get_path_from_object_key(key);
         let mut query = HashMap::new();

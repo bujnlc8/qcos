@@ -1,5 +1,6 @@
 //! 接口客户端，所有的操作都基于该对象
 use crate::acl::AclHeader;
+use crate::request::Response;
 use crate::signer::Signer;
 /// 接口请求Client
 /// # Examples
@@ -101,4 +102,6 @@ impl<'a> Client<'a> {
         headers.insert("Authorization".to_string(), signature);
         headers
     }
+
+    fn make_response(&self, resp: Result<Response, Response>) -> Response {}
 }

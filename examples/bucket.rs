@@ -43,4 +43,11 @@ fn main() {
     } else {
         println!("{:?}", res.result);
     }
+    // 列出key以`abc`开头的文件
+    let res = client.list_objects("abc", "", "", "", 0);
+    if res.error_no == ErrNo::SUCCESS {
+        println!("SUCCESS");
+    } else {
+        println!("{:?}", res.result);
+    }
 }
