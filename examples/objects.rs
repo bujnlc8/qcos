@@ -12,8 +12,9 @@ fn main() {
         "bucket name",
         "region",
     );
+    let file = std::fs::File::open("Cargo.toml").unwrap();
     // 普通上传，无权限控制
-    let res = client.put_object("test.png", "test.png", mime::IMAGE_PNG, None, false);
+    let res = client.put_object(file, "Cargo.toml", mime::TEXT_PLAIN_UTF_8, None, false);
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
@@ -22,28 +23,48 @@ fn main() {
     // 私有权限控制
     let mut acl = AclHeader::new();
     acl.insert_object_x_cos_acl(ObjectAcl::PRIVATE);
-    let res = client.put_object("test.png", "test.png", mime::IMAGE_PNG, Some(&acl), false);
+    let file = std::fs::File::open("Cargo.toml").unwrap();
+    let res = client.put_object(
+        file,
+        "Cargo.toml",
+        mime::TEXT_PLAIN_UTF_8,
+        Some(&acl),
+        false,
+    );
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
         println!("{}", res.error_message);
     }
     // 分块传输，当文件大于5GB时，自动采用分块策略
-    let res = client.put_object("test.png", "test.png", mime::IMAGE_PNG, None, true);
+    let file = std::fs::File::open("Cargo.toml").unwrap();
+    let res = client.put_object(file, "Cargo.toml", mime::TEXT_PLAIN_UTF_8, None, true);
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
         println!("{}", res.error_message);
     }
-    // 删除文件 test/test.png
-    let res = client.delete_object("test/test.png");
+    // 直接上传二进制流
+    let res = client.put_object_binary(
+        std::fs::read("Cargo.toml").unwrap(),
+        "Cargo.toml",
+        mime::TEXT_PLAIN_UTF_8,
+        None,
+    );
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
         println!("{}", res.error_message);
     }
-    // 将对象存储对象名称为test.png的文件下载到本地，名称为local_test.png
-    let res = client.get_object("test.png", "local_test.png");
+    // 删除文件 test/Cargo.toml
+    let res = client.delete_object("test/Cargo.toml");
+    if res.error_no == ErrNo::SUCCESS {
+        println!("SUCCESS");
+    } else {
+        println!("{}", res.error_message);
+    }
+    // 将对象存储对象名称为Cargo.toml的文件下载到本地，名称为local_Cargo.toml
+    let res = client.get_object("Cargo.toml", "local_Cargo.toml");
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
