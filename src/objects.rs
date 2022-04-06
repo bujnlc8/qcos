@@ -133,7 +133,12 @@ impl<'a> Objects for client::Client<'a> {
                     return resp;
                 }
                 let mut size = PART_SIZE;
+                // 计算剩余的大小
                 if file_size - start < PART_SIZE {
+                    size = file_size - start;
+                }
+                // 如果剩余的块小于1M, 那么要全部上传
+                if file_size - size - start <= 1024 * 1024 {
                     size = file_size - start;
                 }
                 file.seek(SeekFrom::Start(start as u64)).unwrap();
