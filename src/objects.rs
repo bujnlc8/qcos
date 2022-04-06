@@ -171,10 +171,7 @@ impl<'a> Objects for client::Client<'a> {
             None,
             Some(file),
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
 
     /// 上传二进制流
@@ -215,10 +212,7 @@ impl<'a> Objects for client::Client<'a> {
             None,
             Some(body),
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
     /// 删除文件
     /// 见[官网文档](https://cloud.tencent.com/document/product/436/7743)
@@ -264,10 +258,7 @@ impl<'a> Objects for client::Client<'a> {
             None,
             Some(&headers),
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
 
     /// 下载文件到本地
@@ -376,10 +367,7 @@ impl<'a> Objects for client::Client<'a> {
             None,
             Some(body),
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
 
     /// 完成分块上传
@@ -425,10 +413,7 @@ impl<'a> Objects for client::Client<'a> {
             None,
             Some(serialized_str),
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
 
     /// 终止分块上传，清理文件碎片
@@ -446,9 +431,6 @@ impl<'a> Objects for client::Client<'a> {
             None,
             None,
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
 }

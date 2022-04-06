@@ -103,5 +103,10 @@ impl<'a> Client<'a> {
         headers
     }
 
-    fn make_response(&self, resp: Result<Response, Response>) -> Response {}
+    pub fn make_response(&self, resp: Result<Response, Response>) -> Response {
+        match resp {
+            Ok(e) => e,
+            Err(e) => e,
+        }
+    }
 }

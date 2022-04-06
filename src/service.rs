@@ -31,9 +31,6 @@ impl<'a> Service for Client<'a> {
             None,
             Some(&headers),
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
 }

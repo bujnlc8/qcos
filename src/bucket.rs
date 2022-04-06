@@ -50,10 +50,7 @@ impl<'a> Bucket for Client<'a> {
             None,
             None as Option<Body>,
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
     /// 删除指定的存储桶。该 API 的请求者需要对存储桶有写入权限。
     /// 见[官网文档](https://cloud.tencent.com/document/product/436/7732)
@@ -74,10 +71,7 @@ impl<'a> Bucket for Client<'a> {
             None,
             None,
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
     /// 列出该存储桶内的部分或者全部对象。该 API 的请求者需要对存储桶有读取权限。
     /// 见[官网文档](https://cloud.tencent.com/document/product/436/7734)
@@ -119,9 +113,6 @@ impl<'a> Bucket for Client<'a> {
             Some(&query),
             Some(&headers),
         );
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        self.make_response(resp)
     }
 }

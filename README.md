@@ -18,7 +18,8 @@ fn main() {
     );
     let mut acl_header = AclHeader::new();
     acl_header.insert_object_x_cos_acl(ObjectAcl::PublicRead);
-    let res = client.put_object("test.png", "test.png", mime::IMAGE_PNG, Some(&acl_header), false);
+    let file = std::fs::File::open("test.png").unwrap();
+    let res = client.put_object(file, "test.png", mime::IMAGE_PNG, Some(&acl_header), false);
     if res.error_no == ErrNo::SUCCESS {
         println!("success");
     } else {
