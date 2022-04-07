@@ -69,6 +69,7 @@ pub enum Method {
     Post,
     Delete,
     Put,
+    Head,
 }
 
 /// # Examples
@@ -161,6 +162,30 @@ impl Request {
             builder = builder.default_headers(header);
         }
         builder
+    }
+    /// send Head request
+    /// # Examples
+    /// ```
+    /// use qcos::request::Request;
+    /// use std::collections::HashMap;
+    /// let mut headers = HashMap::new();
+    /// headers.insert("x-test-header".to_string(), "test-header".to_string());
+    /// Request::head("https://www.baiduc.com", None, Some(&headers));
+    /// ```
+    pub fn head(
+        url: &str,
+        query: Option<&HashMap<String, String>>,
+        headers: Option<&HashMap<String, String>>,
+    ) -> Result<Response, Response> {
+        Request::do_req(
+            Method::Head,
+            url,
+            query,
+            headers,
+            None,
+            None,
+            None as Option<Body>,
+        )
     }
     /// send get request
     /// # Examples
@@ -267,6 +292,7 @@ impl Request {
             Method::Delete => client.delete(url),
             Method::Post => client.post(url),
             Method::Put => client.put(url),
+            Method::Head => client.head(url),
         };
         if let Some(v) = query {
             req = req.query(v);

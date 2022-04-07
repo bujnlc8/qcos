@@ -24,6 +24,12 @@ pub trait Bucket {
         marker: &str,
         max_keys: i32,
     ) -> Response;
+
+    /// 检查bucket状态
+    fn check_bucket(&self) -> Response;
+
+    /// 写入存储桶的访问控制列表（ACL)
+    fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response;
 }
 
 impl<'a> Bucket for Client<'a> {
@@ -112,6 +118,56 @@ impl<'a> Bucket for Client<'a> {
             self.get_full_url_from_path("/").as_str(),
             Some(&query),
             Some(&headers),
+        );
+        self.make_response(resp)
+    }
+
+    /// 确认该存储桶是否存在，是否有权限访问
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7735)
+    /// 存储桶存在且有读取权限，返回 `SUCCESS`
+    /// 无存储桶读取权限，返回 `ErrNo::STATUS`, error_message包含403。
+    /// 存储桶不存在，返回 `ErrNo::STATUS`, error_message包含404。
+    /// # Examples
+    /// ```
+    /// use qcos::client::Client;
+    /// use qcos::bucket::Bucket;
+    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let res = client.check_bucket();
+    /// assert!(res.error_message.contains("403"));
+    /// ```
+    fn check_bucket(&self) -> Response {
+        let headers = self.get_headers_with_auth("head", "/", None, None, None);
+        let resp = Request::head(
+            self.get_full_url_from_path("/").as_str(),
+            None,
+            Some(&headers),
+        );
+        self.make_response(resp)
+    }
+    /// 写入存储桶的访问控制列表
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7737)
+    /// # Examples
+    /// ```
+    /// use qcos::client::Client;
+    /// use qcos::bucket::Bucket;
+    /// use qcos::acl::{AclHeader, BucketAcl};
+    /// let mut acl_header = AclHeader::new();
+    /// acl_header.insert_bucket_x_cos_acl(BucketAcl::PublicRead);
+    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let res = client.put_bucket(Some(&acl_header));
+    /// assert!(res.error_message.contains("403"));
+    /// ```
+    fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response {
+        let mut query = HashMap::new();
+        query.insert("acl".to_string(), "".to_string());
+        let headers = self.get_headers_with_auth("put", "/", Some(acl_header), None, Some(&query));
+        let resp = Request::put(
+            self.get_full_url_from_path("/").as_str(),
+            Some(&query),
+            Some(&headers),
+            None,
+            None,
+            None as Option<Body>,
         );
         self.make_response(resp)
     }

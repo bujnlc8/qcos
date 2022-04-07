@@ -50,4 +50,20 @@ fn main() {
     } else {
         println!("{:?}", res.result);
     }
+    // 检查bucket状态
+    let res = client.check_bucket();
+    if res.error_no == ErrNo::SUCCESS {
+        println!("SUCCESS");
+    } else {
+        println!("{}", res.error_message);
+    }
+    // 写入存储桶的访问控制列表（ACL）
+    let mut acl_header = AclHeader::new();
+    acl_header.insert_bucket_x_cos_acl(BucketAcl::PRIVATE);
+    let res = client.put_bucket_acl(&acl_header);
+    if res.error_no == ErrNo::SUCCESS {
+        println!("SUCCESS");
+    } else {
+        println!("{}", res.error_message);
+    }
 }
