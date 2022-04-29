@@ -29,14 +29,14 @@ function! util#md5(s)
 python << EOF
 import hashlib
 import vim
-res = hashlib.md5(str(vim.bindeval('@b'))).hexdigest()
+res = hashlib.md5(str(vim.bindeval('@b')).encode('utf-8')).hexdigest()
 EOF
     elseif has('python3')
         let @b = a:s
 python3 << EOF
 import hashlib
 import vim
-res = hashlib.md5(str(vim.bindeval('@b'))).hexdigest()
+res = hashlib.md5(str(vim.bindeval('@b')).encode('utf-8')).hexdigest()
 EOF
     endif
     if has('python')
