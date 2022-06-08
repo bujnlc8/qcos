@@ -28,7 +28,7 @@ headers = {
     'Cookie': '',
 }
 
-Cookie = 'OUTFOX_SEARCH_USER_ID=1485736359@10.108.160.102; JSESSIONID=aaaJWUsucwEMl70lf-QXx; OUTFOX_SEARCH_USER_ID_NCOO=1086609560.8868542; '
+Cookie = 'OUTFOX_SEARCH_USER_ID=-281936165@10.110.96.158; JSESSIONID=abcfry9dcEpsQ-4S-D5ey; OUTFOX_SEARCH_USER_ID_NCOO=1683608931.3345668; '
 
 Url = 'https://fanyi.youdao.com/translate_o?smartresult=dict&smartresult=rule'
 
