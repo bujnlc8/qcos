@@ -3,20 +3,22 @@
 use crate::client::Client;
 
 use crate::request::{Request, Response};
-use reqwest::blocking::Body;
+use reqwest::Body;
 
 use crate::acl::AclHeader;
 use std::collections::HashMap;
+
+#[async_trait::async_trait]
 pub trait Bucket {
     /// 在指定账号下创建一个存储桶
     /// 创建存储桶时，如果没有指定访问权限，则默认使用私有读写（private）权限。
-    fn put_bucket(&self, acl_header: Option<&AclHeader>) -> Response;
+    async fn put_bucket(&self, acl_header: Option<&AclHeader>) -> Response;
 
     /// 用于删除指定的存储桶。该 API 的请求者需要对存储桶有写入权限。
-    fn delete_bucket(&self) -> Response;
+    async fn delete_bucket(&self) -> Response;
 
     /// 可以列出该存储桶内的部分或者全部对象。该 API 的请求者需要对存储桶有读取权限。
-    fn list_objects(
+    async fn list_objects(
         &self,
         prefix: &str,
         delimiter: &str,
@@ -26,13 +28,14 @@ pub trait Bucket {
     ) -> Response;
 
     /// 检查bucket状态
-    fn check_bucket(&self) -> Response;
+    async fn check_bucket(&self) -> Response;
 
     /// 写入存储桶的访问控制列表（ACL)
-    fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response;
+    async fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response;
 }
 
-impl<'a> Bucket for Client<'a> {
+#[async_trait::async_trait]
+impl Bucket for Client {
     /// 创建一个存储桶
     /// 见[官网文档](https://cloud.tencent.com/document/product/436/7738)
     /// # Examples
@@ -46,7 +49,7 @@ impl<'a> Bucket for Client<'a> {
     /// let res = client.put_bucket(Some(&acl_header));
     /// assert!(res.error_message.contains("403"));
     /// ```
-    fn put_bucket(&self, acl_header: Option<&AclHeader>) -> Response {
+    async fn put_bucket(&self, acl_header: Option<&AclHeader>) -> Response {
         let headers = self.get_headers_with_auth("put", "/", acl_header, None, None);
         let resp = Request::put(
             self.get_full_url_from_path("/").as_str(),
@@ -55,7 +58,8 @@ impl<'a> Bucket for Client<'a> {
             None,
             None,
             None as Option<Body>,
-        );
+        )
+        .await;
         self.make_response(resp)
     }
     /// 删除指定的存储桶。该 API 的请求者需要对存储桶有写入权限。
@@ -68,7 +72,7 @@ impl<'a> Bucket for Client<'a> {
     /// let res = client.delete_bucket();
     /// assert!(res.error_message.contains("403"));
     /// ```
-    fn delete_bucket(&self) -> Response {
+    async fn delete_bucket(&self) -> Response {
         let headers = self.get_headers_with_auth("delete", "/", None, None, None);
         let resp = Request::delete(
             self.get_full_url_from_path("/").as_str(),
@@ -76,7 +80,8 @@ impl<'a> Bucket for Client<'a> {
             Some(&headers),
             None,
             None,
-        );
+        )
+        .await;
         self.make_response(resp)
     }
     /// 列出该存储桶内的部分或者全部对象。该 API 的请求者需要对存储桶有读取权限。
@@ -89,7 +94,7 @@ impl<'a> Bucket for Client<'a> {
     /// let res = client.list_objects("prefix", "", "", "/", 100);
     /// assert!(res.error_message.contains("403"));
     /// ```
-    fn list_objects(
+    async fn list_objects(
         &self,
         prefix: &str,
         delimiter: &str,
@@ -118,7 +123,8 @@ impl<'a> Bucket for Client<'a> {
             self.get_full_url_from_path("/").as_str(),
             Some(&query),
             Some(&headers),
-        );
+        )
+        .await;
         self.make_response(resp)
     }
 
@@ -135,13 +141,14 @@ impl<'a> Bucket for Client<'a> {
     /// let res = client.check_bucket();
     /// assert!(res.error_message.contains("403"));
     /// ```
-    fn check_bucket(&self) -> Response {
+    async fn check_bucket(&self) -> Response {
         let headers = self.get_headers_with_auth("head", "/", None, None, None);
         let resp = Request::head(
             self.get_full_url_from_path("/").as_str(),
             None,
             Some(&headers),
-        );
+        )
+        .await;
         self.make_response(resp)
     }
     /// 写入存储桶的访问控制列表
@@ -157,7 +164,7 @@ impl<'a> Bucket for Client<'a> {
     /// let res = client.put_bucket(Some(&acl_header));
     /// assert!(res.error_message.contains("403"));
     /// ```
-    fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response {
+    async fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response {
         let mut query = HashMap::new();
         query.insert("acl".to_string(), "".to_string());
         let headers = self.get_headers_with_auth("put", "/", Some(acl_header), None, Some(&query));
@@ -168,7 +175,8 @@ impl<'a> Bucket for Client<'a> {
             None,
             None,
             None as Option<Body>,
-        );
+        )
+        .await;
         self.make_response(resp)
     }
 }
