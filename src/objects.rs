@@ -31,7 +31,7 @@ pub trait Objects {
         content_type: mime::Mime,
         storage_class: &str,
         acl_header: Option<&acl::AclHeader>,
-        part_size: usize,
+        part_size: u64,
     ) -> Response;
 
     /// 上传二进制流
@@ -66,7 +66,7 @@ pub trait Objects {
         &self,
         key: &str,
         upload_id: &str,
-        part_number: usize,
+        part_number: u64,
         body: Vec<u8>,
         content_type: &mime::Mime,
         acl_header: Option<&acl::AclHeader>,
@@ -76,7 +76,7 @@ pub trait Objects {
     async fn put_object_complete_part(
         &self,
         key: &str,
-        etag_map: &HashMap<i32, String>,
+        etag_map: &HashMap<u64, String>,
         upload_id: &str,
     ) -> Response;
 
@@ -173,7 +173,7 @@ impl Objects for client::Client {
         content_type: mime::Mime,
         storage_class: &str,
         acl_header: Option<&acl::AclHeader>,
-        part_size: usize,
+        part_size: u64,
     ) -> Response {
         use tokio::io::AsyncReadExt;
         use tokio::io::AsyncSeekExt;
@@ -191,7 +191,7 @@ impl Objects for client::Client {
         };
         // 设置为分块上传或者大于5G会启动分块上传
         let file_size = match file.metadata().await {
-            Ok(meta) => meta.len() as usize,
+            Ok(meta) => meta.len(),
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
@@ -266,7 +266,7 @@ impl Objects for client::Client {
                 self.abort_object_part(key, upload_id.as_str()).await;
                 return resp;
             }
-            etag_map.insert(part_number as i32, resp.headers["etag"].clone());
+            etag_map.insert(part_number, resp.headers["etag"].clone());
             part_number += 1;
         }
     }
@@ -450,7 +450,7 @@ impl Objects for client::Client {
         &self,
         key: &str,
         upload_id: &str,
-        part_number: usize,
+        part_number: u64,
         body: Vec<u8>,
         content_type: &mime::Mime,
         acl_header: Option<&acl::AclHeader>,
@@ -486,7 +486,7 @@ impl Objects for client::Client {
     async fn put_object_complete_part(
         &self,
         key: &str,
-        etag_map: &HashMap<i32, String>,
+        etag_map: &HashMap<u64, String>,
         upload_id: &str,
     ) -> Response {
         let url_path = self.get_path_from_object_key(key);

@@ -42,7 +42,7 @@ pub struct CompleteMultipartUpload {
 #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone)]
 pub struct Part {
     #[serde(rename = "$unflatten=PartNumber")]
-    pub part_number: i32,
+    pub part_number: u64,
     #[serde(rename = "$unflatten=ETag")]
     pub etag: String,
 }
