@@ -9,10 +9,10 @@ use qcos::service::Service;
 #[tokio::main]
 async fn main() {
     let client = Client::new(
-        "Your secrect id".to_owned(),
-        "Your secrect key.to_owned()",
-        "bucket-name".to_owned(),
-        "region".to_owned(),
+        "Your secrect id",
+        "Your secrect key",
+        "bucket-name",
+        "region",
     );
     // 获取bukcet列表
     let res = client.get_bucket_list().await;

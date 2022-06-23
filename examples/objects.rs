@@ -8,10 +8,10 @@ use qcos::request::ErrNo;
 #[tokio::main]
 async fn main() {
     let client = Client::new(
-        "Your secrect id".to_owned(),
-        "Your secrect key".to_owned(),
-        "bucket name".to_owned(),
-        "region".to_owned(),
+        "Your secrect id",
+        "Your secrect key",
+        "bucket name",
+        "region",
     );
     // 普通上传，无权限控制
     let res = client
@@ -44,6 +44,7 @@ async fn main() {
             "Cargo.toml",
             "Cargo.toml",
             mime::TEXT_PLAIN_UTF_8,
+            "ARCHIVE",
             None,
             1024,
         )

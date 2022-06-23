@@ -172,9 +172,11 @@ impl Request {
     /// ```
     /// use qcos::request::Request;
     /// use std::collections::HashMap;
+    /// async {
     /// let mut headers = HashMap::new();
     /// headers.insert("x-test-header".to_string(), "test-header".to_string());
-    /// Request::head("https://www.baiduc.com", None, Some(&headers));
+    /// Request::head("https://www.baiduc.com", None, Some(&headers)).await;
+    /// };
     /// ```
     pub async fn head(
         url: &str,
@@ -197,9 +199,11 @@ impl Request {
     /// ```
     /// use qcos::request::Request;
     /// use std::collections::HashMap;
+    /// async {
     /// let mut headers = HashMap::new();
     /// headers.insert("x-test-header".to_string(), "test-header".to_string());
-    /// Request::get("https://www.baiduc.com", None, Some(&headers));
+    /// Request::get("https://www.baiduc.com", None, Some(&headers)).await;
+    /// };
     /// ```
     pub async fn get(
         url: &str,
@@ -220,10 +224,11 @@ impl Request {
     /// send post request
     /// # Examples
     /// ```
-    /// use reqwest::blocking::Body;
+    /// use reqwest::Body;
     /// use qcos::request::Request;
     /// use std::collections::HashMap;
     /// use serde_json::json;
+    /// async {
     /// let mut form = HashMap::new();
     /// form.insert("hello", json!(1i16));
     /// form.insert("hello1", json!("world"));
@@ -238,7 +243,8 @@ impl Request {
     ///     Some(&form),
     ///     Some(&json),
     ///     None as Option<Body>,
-    /// );
+    /// ).await;
+    /// };
     /// ```
     pub async fn post<T: Into<Body>>(
         url: &str,

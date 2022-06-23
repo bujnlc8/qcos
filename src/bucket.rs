@@ -43,11 +43,13 @@ impl Bucket for Client {
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
     /// use qcos::acl::{AclHeader, BucketAcl};
+    /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_bucket_x_cos_acl(BucketAcl::PublicRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    /// let res = client.put_bucket(Some(&acl_header));
+    /// let res = client.put_bucket(Some(&acl_header)).await;
     /// assert!(res.error_message.contains("403"));
+    /// };
     /// ```
     async fn put_bucket(&self, acl_header: Option<&AclHeader>) -> Response {
         let headers = self.get_headers_with_auth("put", "/", acl_header, None, None);
@@ -68,9 +70,11 @@ impl Bucket for Client {
     /// ```
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
+    /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    /// let res = client.delete_bucket();
+    /// let res = client.delete_bucket().await;
     /// assert!(res.error_message.contains("403"));
+    /// };
     /// ```
     async fn delete_bucket(&self) -> Response {
         let headers = self.get_headers_with_auth("delete", "/", None, None, None);
@@ -90,9 +94,11 @@ impl Bucket for Client {
     /// ```
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
+    /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    /// let res = client.list_objects("prefix", "", "", "/", 100);
+    /// let res = client.list_objects("prefix", "", "", "/", 100).await;
     /// assert!(res.error_message.contains("403"));
+    /// };
     /// ```
     async fn list_objects(
         &self,
@@ -137,9 +143,11 @@ impl Bucket for Client {
     /// ```
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
+    /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    /// let res = client.check_bucket();
+    /// let res = client.check_bucket().await;
     /// assert!(res.error_message.contains("403"));
+    /// };
     /// ```
     async fn check_bucket(&self) -> Response {
         let headers = self.get_headers_with_auth("head", "/", None, None, None);
@@ -158,11 +166,13 @@ impl Bucket for Client {
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
     /// use qcos::acl::{AclHeader, BucketAcl};
+    /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_bucket_x_cos_acl(BucketAcl::PublicRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    /// let res = client.put_bucket(Some(&acl_header));
+    /// let res = client.put_bucket(Some(&acl_header)).await;
     /// assert!(res.error_message.contains("403"));
+    /// };
     /// ```
     async fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response {
         let mut query = HashMap::new();

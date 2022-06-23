@@ -20,12 +20,17 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(secrect_id: String, secrect_key: String, bucket: String, region: String) -> Self {
+    pub fn new(
+        secrect_id: impl Into<String>,
+        secrect_key: impl Into<String>,
+        bucket: impl Into<String>,
+        region: impl Into<String>,
+    ) -> Self {
         Self {
-            secrect_id,
-            secrect_key,
-            bucket,
-            region,
+            secrect_id: secrect_id.into(),
+            secrect_key: secrect_key.into(),
+            bucket: bucket.into(),
+            region: region.into(),
         }
     }
 

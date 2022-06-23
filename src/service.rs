@@ -18,9 +18,11 @@ impl Service for Client {
     ```
     use qcos::client::Client;
     use qcos::service::Service;
+    async {
     let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    let resp = client.get_bucket_list();
+    let resp = client.get_bucket_list().await;
     assert!(resp.error_message.contains("403"));
+    };
     ```
     */
     async fn get_bucket_list(&self) -> Response {
