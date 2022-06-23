@@ -12,25 +12,25 @@ use crate::signer::Signer;
 use chrono::Utc;
 use std::collections::HashMap;
 
-pub struct Client<'a> {
-    secrect_id: &'a str,
-    secrect_key: &'a str,
-    bucket: &'a str,
-    region: &'a str,
+pub struct Client {
+    secrect_id: String,
+    secrect_key: String,
+    bucket: String,
+    region: String,
 }
 
-impl<'a> Client<'a> {
+impl Client {
     pub fn new(
-        secrect_id: &'a str,
-        secrect_key: &'a str,
-        bucket: &'a str,
-        region: &'a str,
+        secrect_id: impl Into<String>,
+        secrect_key: impl Into<String>,
+        bucket: impl Into<String>,
+        region: impl Into<String>,
     ) -> Self {
         Self {
-            secrect_id,
-            secrect_key,
-            bucket,
-            region,
+            secrect_id: secrect_id.into(),
+            secrect_key: secrect_key.into(),
+            bucket: bucket.into(),
+            region: region.into(),
         }
     }
 
@@ -39,10 +39,10 @@ impl<'a> Client<'a> {
     }
 
     pub fn get_secrect_key(&self) -> &str {
-        self.secrect_key
+        &self.secrect_key
     }
     pub fn get_secrect_id(&self) -> &str {
-        self.secrect_id
+        &self.secrect_id
     }
 
     // 生成通用的request headers, 包含`Host`及`Date`

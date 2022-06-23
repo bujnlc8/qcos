@@ -4,8 +4,8 @@ use std::fmt::Display;
 
 use bytes::Bytes;
 
-use reqwest::blocking::Body;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::Body;
 use serde_json::value::Value;
 use std::convert::From;
 use std::str::FromStr;
@@ -42,7 +42,7 @@ pub struct CompleteMultipartUpload {
 #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone)]
 pub struct Part {
     #[serde(rename = "$unflatten=PartNumber")]
-    pub part_number: i32,
+    pub part_number: u64,
     #[serde(rename = "$unflatten=ETag")]
     pub etag: String,
 }
@@ -60,6 +60,10 @@ pub enum ErrNo {
     DECODE = 10002,
     /// 连接相关错误
     CONNECT = 10003,
+    /// 编码相关错误
+    ENCODE = 20001,
+    /// IO错误
+    IO = 20002,
 }
 
 /// 请求方法
@@ -149,8 +153,8 @@ impl Request {
     /// 从传入的`headers`参数生成`reqwest::blocking::ClientBuilder`
     fn get_builder_with_headers(
         headers: Option<&HashMap<String, String>>,
-    ) -> reqwest::blocking::ClientBuilder {
-        let mut builder = reqwest::blocking::ClientBuilder::new();
+    ) -> reqwest::ClientBuilder {
+        let mut builder = reqwest::ClientBuilder::new();
         if let Some(headers) = headers {
             let mut header = HeaderMap::new();
             for (k, v) in headers {
@@ -168,11 +172,13 @@ impl Request {
     /// ```
     /// use qcos::request::Request;
     /// use std::collections::HashMap;
+    /// async {
     /// let mut headers = HashMap::new();
     /// headers.insert("x-test-header".to_string(), "test-header".to_string());
-    /// Request::head("https://www.baiduc.com", None, Some(&headers));
+    /// Request::head("https://www.baiduc.com", None, Some(&headers)).await;
+    /// };
     /// ```
-    pub fn head(
+    pub async fn head(
         url: &str,
         query: Option<&HashMap<String, String>>,
         headers: Option<&HashMap<String, String>>,
@@ -186,17 +192,20 @@ impl Request {
             None,
             None as Option<Body>,
         )
+        .await
     }
     /// send get request
     /// # Examples
     /// ```
     /// use qcos::request::Request;
     /// use std::collections::HashMap;
+    /// async {
     /// let mut headers = HashMap::new();
     /// headers.insert("x-test-header".to_string(), "test-header".to_string());
-    /// Request::get("https://www.baiduc.com", None, Some(&headers));
+    /// Request::get("https://www.baiduc.com", None, Some(&headers)).await;
+    /// };
     /// ```
-    pub fn get(
+    pub async fn get(
         url: &str,
         query: Option<&HashMap<String, String>>,
         headers: Option<&HashMap<String, String>>,
@@ -210,14 +219,16 @@ impl Request {
             None,
             None as Option<Body>,
         )
+        .await
     }
     /// send post request
     /// # Examples
     /// ```
-    /// use reqwest::blocking::Body;
+    /// use reqwest::Body;
     /// use qcos::request::Request;
     /// use std::collections::HashMap;
     /// use serde_json::json;
+    /// async {
     /// let mut form = HashMap::new();
     /// form.insert("hello", json!(1i16));
     /// form.insert("hello1", json!("world"));
@@ -232,9 +243,10 @@ impl Request {
     ///     Some(&form),
     ///     Some(&json),
     ///     None as Option<Body>,
-    /// );
+    /// ).await;
+    /// };
     /// ```
-    pub fn post<T: Into<Body>>(
+    pub async fn post<T: Into<Body>>(
         url: &str,
         query: Option<&HashMap<String, String>>,
         headers: Option<&HashMap<String, String>>,
@@ -242,11 +254,11 @@ impl Request {
         json: Option<&HashMap<&str, Data>>,
         body_data: Option<T>,
     ) -> Result<Response, Response> {
-        Request::do_req(Method::Post, url, query, headers, form, json, body_data)
+        Request::do_req(Method::Post, url, query, headers, form, json, body_data).await
     }
 
     /// send put request
-    pub fn put<T: Into<Body>>(
+    pub async fn put<T: Into<Body>>(
         url: &str,
         query: Option<&HashMap<String, String>>,
         headers: Option<&HashMap<String, String>>,
@@ -254,11 +266,11 @@ impl Request {
         json: Option<&HashMap<&str, Data>>,
         body_data: Option<T>,
     ) -> Result<Response, Response> {
-        Request::do_req(Method::Put, url, query, headers, form, json, body_data)
+        Request::do_req(Method::Put, url, query, headers, form, json, body_data).await
     }
 
     /// send delete request
-    pub fn delete(
+    pub async fn delete(
         url: &str,
         query: Option<&HashMap<String, String>>,
         headers: Option<&HashMap<String, String>>,
@@ -274,9 +286,10 @@ impl Request {
             json,
             None as Option<Body>,
         )
+        .await
     }
 
-    fn do_req<T: Into<Body>>(
+    async fn do_req<T: Into<Body>>(
         method: Method,
         url: &str,
         query: Option<&HashMap<String, String>>,
@@ -306,7 +319,7 @@ impl Request {
         if let Some(v) = body_data {
             req = req.body(v.into());
         }
-        let resp = req.send()?;
+        let resp = req.send().await?;
         let status_code = resp.status();
         let mut error_no = ErrNo::SUCCESS;
         let mut message = "".to_string();
@@ -321,7 +334,7 @@ impl Request {
         Ok(Response {
             error_no,
             error_message: message,
-            result: resp.bytes()?,
+            result: resp.bytes().await?,
             headers,
         })
     }
@@ -330,18 +343,19 @@ impl Request {
 #[cfg(test)]
 mod tests {
     use crate::request::{ErrNo, Request};
-    use reqwest::blocking::Body;
+    use reqwest::Body;
     use serde_json::json;
     use std::collections::HashMap;
-    #[test]
-    fn test_get() {
+
+    #[tokio::test]
+    async fn test_get() {
         let mut header = HashMap::new();
         header.insert("user-agent".to_string(), "test-user-agent".to_string());
         let mut query = HashMap::new();
         query.insert("a".to_string(), "a".to_string());
         query.insert("b".to_string(), "b".to_string());
         query.insert("c".to_string(), "c".to_string());
-        let response = Request::get("https://www.baidu.com", Some(&query), Some(&header));
+        let response = Request::get("https://www.baidu.com", Some(&query), Some(&header)).await;
         match response {
             Ok(e) => {
                 println!("{:#?}", e);
@@ -350,8 +364,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_post_form() {
+    #[tokio::test]
+    async fn test_post_form() {
         let mut form = HashMap::new();
         form.insert("hello", json!(1i16));
         form.insert("hello1", json!("world"));
@@ -366,7 +380,8 @@ mod tests {
             Some(&form),
             Some(&json),
             None as Option<Body>,
-        );
+        )
+        .await;
         if let Ok(e) = &resp {
             println!("{:#?}", e);
         }
