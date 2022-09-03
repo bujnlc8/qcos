@@ -155,7 +155,7 @@ function! s:do_echo(words, res, is_echo)
         let l:tmp = substitute(a:res, '\r', '', 'g')
     endif
     if len(l:tmp) > 200
-        silent! execute 'cexpr "'.l:tmp.'"'
+        silent! execute 'cexpr l:tmp'
         silent! execute 'copen'
     else
         echo substitute(l:tmp, '\n', ' ', 'g')
