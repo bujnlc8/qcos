@@ -10,6 +10,7 @@ from sys import argv, stdout
 from urllib import error, parse, request
 
 headers = {
+    'Content-Length': 417,
     'Connection': 'keep-alive',
     'sec-ch-ua': '"Google Chrome";v="93", " Not;A Brand";v="99", "Chromium";v="93"',
     'DNT': '1',
@@ -28,7 +29,7 @@ headers = {
     'Cookie': '',
 }
 
-Cookie = 'OUTFOX_SEARCH_USER_ID=-281936165@10.110.96.158; JSESSIONID=abcfry9dcEpsQ-4S-D5ey; OUTFOX_SEARCH_USER_ID_NCOO=1683608931.3345668; '
+Cookie = 'OUTFOX_SEARCH_USER_ID=1025647716@10.105.137.204; JSESSIONID=abcANZkLeT9rY7RGG8lmy; OUTFOX_SEARCH_USER_ID_NCOO=1716500965.6211884;'
 
 Url = 'https://fanyi.youdao.com/translate_o?smartresult=dict&smartresult=rule'
 
@@ -40,9 +41,8 @@ def get_result(query):
 
 def _get_result(query):
     t = int(time.time() * 1000)
-    salt = t + random.randint(1, 10)
-    sign = hashlib.md5(str('fanyideskweb{}{}Y2FYu%TNSbMCxc3t2u^XT'.format(
-        query, salt)).encode('utf-8')).hexdigest()
+    salt = str(t) + str(random.randint(1, 10))
+    sign = hashlib.md5(str('fanyideskweb{}{}Ygy_4c=r#e#4EX^NUGUc5'.format(query, salt)).encode('utf-8')).hexdigest()
     data = {
         'i': query,
         'from': 'AUTO',
@@ -52,7 +52,7 @@ def _get_result(query):
         'salt': '{}'.format(salt),
         'sign': '{}'.format(sign),
         'lts': '{}'.format(t),
-        'bv': '2269d5603709e65f667af23032808f1a',
+        'bv': 'd2d111fb0f6e20e76ece0d3d4ebbb36a',
         'doctype': 'json',
         'version': '2.1',
         'keyfrom': 'fanyi.web',
@@ -60,8 +60,9 @@ def _get_result(query):
     }
     headers['Cookie'] = Cookie + '___rl__test__cookies=' + str(t)
     try:
-        req = request.Request(Url, data=parse.urlencode(
-            data).encode('utf-8'), headers=headers)
+        data = parse.urlencode(data).encode('utf-8')
+        headers['Content-Length'] = len(data)
+        req = request.Request(Url, data=data, headers=headers)
         res = request.urlopen(req)
         if res.getcode() != 200:
             return 'Err:返回异常[{}]'.format(res.getcode())

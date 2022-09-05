@@ -1,5 +1,7 @@
 function! util#base64(s)
-    if has('python')
+    if executable('base64')
+        return substitute(system('echo -n "'.a:s.'" | base64'), '\n', '', 'g')
+    elseif has('python')
         let @b = a:s
 python << EOF
 import base64
