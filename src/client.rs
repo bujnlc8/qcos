@@ -48,7 +48,7 @@ impl<'a> Client<'a> {
     // 生成通用的request headers, 包含`Host`及`Date`
     pub fn gen_common_headers(&self) -> HashMap<String, String> {
         let mut headers = HashMap::new();
-        headers.insert("Host".to_string(), self.get_host().to_string());
+        headers.insert("Host".to_string(), self.get_host());
         let now_str = Utc::now().format("%a, %d %b %Y %T GMT").to_string();
         headers.insert("Date".to_string(), now_str);
         headers
@@ -60,7 +60,7 @@ impl<'a> Client<'a> {
 
     pub fn get_path_from_object_key(&self, key: &str) -> String {
         let mut url_path = key.to_string();
-        if !url_path.starts_with("/") {
+        if !url_path.starts_with('/') {
             url_path = format!("/{}", url_path);
         }
         url_path
@@ -80,11 +80,11 @@ impl<'a> Client<'a> {
         method: &str,
         url_path: &str,
         acl_header: Option<&AclHeader>,
-        orgin_headers: Option<HashMap<String, String>>,
+        origin_headers: Option<HashMap<String, String>>,
         query: Option<&HashMap<String, String>>,
     ) -> HashMap<String, String> {
         let mut headers;
-        if let Some(origin_headers) = orgin_headers {
+        if let Some(origin_headers) = origin_headers {
             headers = origin_headers;
         } else {
             headers = self.gen_common_headers();
@@ -108,5 +108,20 @@ impl<'a> Client<'a> {
             Ok(e) => e,
             Err(e) => e,
         }
+    }
+
+    /// 获取预签名下载URL
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/35153)
+    pub fn get_presigned_download_url(&self, object_key: &str, expire: u32) -> String {
+        let url_path = self.get_path_from_object_key(object_key);
+        let full_url = self.get_full_url_from_path(url_path.as_str());
+        let mut headers = HashMap::new();
+        headers.insert("host".to_string(), self.get_host());
+        let signature = Signer::new("get", &url_path, Some(&headers), None).get_signature(
+            self.get_secrect_key(),
+            self.get_secrect_id(),
+            expire,
+        );
+        format!("{url}?{signature}", url = full_url, signature = signature)
     }
 }

@@ -70,4 +70,8 @@ fn main() {
     } else {
         println!("{}", res.error_message);
     }
+
+    // 获取预签名下载URL
+    let url = client.get_presigned_download_url("Cargo.toml", 3600);
+    println!("full_url: {}", url);
 }
