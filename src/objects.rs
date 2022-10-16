@@ -62,7 +62,7 @@ pub trait Objects {
     ) -> Response;
 
     /// 分块上传
-    async fn put_objet_part(
+    async fn put_object_part(
         &self,
         key: &str,
         upload_id: &str,
@@ -253,7 +253,7 @@ impl Objects for client::Client {
                 );
             }
             let resp = self
-                .put_objet_part(
+                .put_object_part(
                     key,
                     upload_id.as_str(),
                     part_number,
@@ -442,9 +442,7 @@ impl Objects for client::Client {
                 if res.error_no != ErrNo::SUCCESS {
                     return res;
                 }
-                match quick_xml::de::from_slice::<'_, InitiateMultipartUploadResult>(
-                    &res.result[..],
-                ) {
+                match quick_xml::de::from_slice::<InitiateMultipartUploadResult>(&res.result[..]) {
                     Ok(res) => Response::new(ErrNo::SUCCESS, "".to_string(), res.upload_id),
                     Err(e) => Response::new(ErrNo::DECODE, e.to_string(), Default::default()),
                 }
@@ -455,7 +453,7 @@ impl Objects for client::Client {
 
     /// 分块上传文件
     /// [官网文档](https://cloud.tencent.com/document/product/436/7750)
-    async fn put_objet_part(
+    async fn put_object_part(
         &self,
         key: &str,
         upload_id: &str,
