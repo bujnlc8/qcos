@@ -26,6 +26,8 @@ endfunction
 function! util#md5(s)
     if executable('md5')
         return substitute(system('echo -n "'.a:s.'" | md5'), '\n', '', 'g')
+    if executable('md5sum')
+        return substitute(system('echo -n "'.a:s.'" | md5sum'), '\n', '', 'g')
     elseif has('python')
         let @b = a:s
 python << EOF
