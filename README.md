@@ -1,4 +1,4 @@
-[![qcos](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml/badge.svg?branch=master&event=push)](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml)
+[![qcos](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml/badge.svg)](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml)
 
 **异步版本** `async`/`await`
 
