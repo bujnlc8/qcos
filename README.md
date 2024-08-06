@@ -1,3 +1,4 @@
+[![Crates.io](https://img.shields.io/crates/v/qcos?style=flat-square)](https://crates.io/crates/qcos)
 [![qcos](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml/badge.svg)](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml)
 
 **异步版本** `async`/`await`
