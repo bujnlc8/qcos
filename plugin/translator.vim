@@ -1,6 +1,6 @@
 let s:current_path = expand('<sfile>:p:h')
 
-let s:has_popup = has('textprop') && has('patch-8.2.0286')
+let s:has_popup = (has('textprop') && has('patch-8.2.0286')) || has("nvim")
 
 if !exists('g:translator_outputype')
     if s:has_popup
@@ -11,7 +11,7 @@ if !exists('g:translator_outputype')
 endif
 
 if g:translator_outputype == 'popup' && !s:has_popup
-    echoerr '[Translator] not support popup, `g:translator_outputype` will be changed to `echo`'
+    echoerr '[Translator] not support popup, `g:translator_outputype` will be switch to `echo`'
     let g:translator_outputype = 'echo'
 endif
 
@@ -20,7 +20,7 @@ if !exists('g:translator_channel')
 endif
 
 if g:translator_channel != 'youdao' &&  g:translator_channel != 'baidu'
-    echoerr '[Translator] g:translator_channel 配置错误'
+    echoerr '[Translator] g:translator_channel config error'
 endif
 
 let s:translator_file= s:current_path . '/'.g:translator_channel.'.py'
@@ -35,7 +35,10 @@ endif
 
 if g:translator_cache
     if !isdirectory(g:translator_cache_path)
-        call mkdir(g:translator_cache_path)
+        try
+            call mkdir(g:translator_cache_path)
+        catch
+        endtry
     endif
 endif
 
@@ -50,6 +53,9 @@ elseif executable('gzip')
 endif
 
 function! s:do_cache(md5, s)
+    if !isdirectory(g:translator_cache_path)
+        return
+    endif
     let l:ppdir = g:translator_cache_path.'/'.a:md5[:1]
     if !isdirectory(l:ppdir)
         call mkdir(l:ppdir)
@@ -62,12 +68,74 @@ function! s:do_cache(md5, s)
 endfunction
 
 function! s:popup_filter(winid, key)
-    if a:key == 'z'
+    if a:key == 'z' || a:key == 'q'
         call popup_close(a:winid)
     endif
 endfunction
 
+function! s:create_popup_nvim(words, result)
+    call s:popup_clear_nvim()
+
+    if len(a:result) > 2000
+        let l:max_width = 132
+    else
+        let l:max_width = 66
+    endif
+
+    let l:height = min([len(split(a:result, "\n")) + 2, 20])
+    let l:width = l:max_width
+    let l:editor_width = &columns
+    let l:editor_height = &lines
+    let l:row = (l:editor_height - l:height) / 2
+    let l:col = (l:editor_width - l:width) / 2
+
+    let l:options = {
+                \ 'relative': 'editor',
+                \ 'width': l:max_width,
+                \ 'height': l:height,
+                \ 'col': l:col,
+                \ 'row': l:row,
+                \ 'anchor': 'NW',
+                \ 'style': 'minimal',
+                \ 'border': 'rounded',
+                \ 'zindex': 100,
+                \}
+
+    let l:result = []
+    for x in split(a:result, "\n")
+        call add(l:result, substitute(x, '\s', '', 'g'))
+    endfor
+
+    if len(a:words) < 132
+        let l:lines = [a:words, '------------------------------------------------------------------'] + l:result
+    else
+        let l:lines = l:result
+    endif
+
+    let l:buf = nvim_create_buf(v:false, v:true)
+    call nvim_buf_set_lines(l:buf, 0, -1, v:true, l:lines)
+    let l:winid = nvim_open_win(l:buf, v:true, l:options)
+    call nvim_win_set_option(l:winid, 'winhighlight', 'Normal:TranslatorHi,FloatBorder:TranslatorBorder')
+    call nvim_buf_set_option(l:buf, 'filetype', 'translator')
+    call nvim_buf_set_keymap(l:buf, 'n', 'z', ':call nvim_win_close(' . l:winid . ', v:true)<CR>', {'nowait': v:true, 'noremap': v:true, 'silent': v:true})
+    call nvim_buf_set_keymap(l:buf, 'n', 'q', ':call nvim_win_close(' . l:winid . ', v:true)<CR>', {'nowait': v:true, 'noremap': v:true, 'silent': v:true})
+    call nvim_buf_set_keymap(l:buf, 'n', '<Esc>', ':call nvim_win_close(' . l:winid . ', v:true)<CR>', {'nowait': v:true, 'noremap': v:true, 'silent': v:true})
+endfunction
+
+function! s:popup_clear_nvim()
+    let l:windows = nvim_list_wins()
+    for win in l:windows
+        if nvim_win_get_config(win).relative != ''
+            call nvim_win_close(win, v:true)
+        endif
+    endfor
+endfunction
+
 function! s:create_popup(words, result)
+    if has('nvim')
+        call s:create_popup_nvim(a:words, a:result)
+        return
+    endif
     call popup_clear()
     if len(a:result) > 2000
         let l:max_wdith = 132
@@ -334,5 +402,5 @@ command! Tee call <SID>enshrine_edit()
 command! Tev call <SID>enshrine_wordsv()
 autocmd! BufWritePost *.tdata :call <SID>after_write_enshrine_file()
 autocmd! BufWritePre *.tdata set fileencoding=utf-8
-highlight TranslatorBorder ctermfg=37 guifg=#459d90 guibg=#202a31
-highlight TranslatorHi term=bold guifg=#898f9e guibg=#202a31
+highlight TranslatorBorder ctermfg=37 guifg=#459d90
+highlight TranslatorHi term=bold guifg=#898f9e
