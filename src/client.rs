@@ -12,6 +12,7 @@ use crate::signer::Signer;
 use chrono::Utc;
 use std::collections::HashMap;
 
+#[derive(Debug, Clone)]
 pub struct Client {
     secrect_id: String,
     secrect_key: String,
@@ -79,9 +80,9 @@ impl Client {
         &self,
         method: &str,
         url_path: &str,
-        acl_header: Option<&AclHeader>,
+        acl_header: Option<AclHeader>,
         origin_headers: Option<HashMap<String, String>>,
-        query: Option<&HashMap<String, String>>,
+        query: Option<HashMap<String, String>>,
     ) -> HashMap<String, String> {
         let mut headers;
         if let Some(origin_headers) = origin_headers {
@@ -94,7 +95,7 @@ impl Client {
                 headers.insert(k.to_string(), v.to_string());
             }
         }
-        let signature = Signer::new(method, url_path, Some(&headers), query).get_signature(
+        let signature = Signer::new(method, url_path, Some(headers.clone()), query).get_signature(
             self.get_secrect_key(),
             self.get_secrect_id(),
             7200,
@@ -117,7 +118,7 @@ impl Client {
         let full_url = self.get_full_url_from_path(url_path.as_str());
         let mut headers = HashMap::new();
         headers.insert("host".to_string(), self.get_host());
-        let signature = Signer::new("get", &url_path, Some(&headers), None).get_signature(
+        let signature = Signer::new("get", &url_path, Some(headers), None).get_signature(
             self.get_secrect_key(),
             self.get_secrect_id(),
             expire,

@@ -12,7 +12,7 @@ use std::collections::HashMap;
 pub trait Bucket {
     /// 在指定账号下创建一个存储桶
     /// 创建存储桶时，如果没有指定访问权限，则默认使用私有读写（private）权限。
-    async fn put_bucket(&self, acl_header: Option<&AclHeader>) -> Response;
+    async fn put_bucket(&self, acl_header: Option<AclHeader>) -> Response;
 
     /// 用于删除指定的存储桶。该 API 的请求者需要对存储桶有写入权限。
     async fn delete_bucket(&self) -> Response;
@@ -31,7 +31,7 @@ pub trait Bucket {
     async fn check_bucket(&self) -> Response;
 
     /// 写入存储桶的访问控制列表（ACL)
-    async fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response;
+    async fn put_bucket_acl(&self, acl_header: AclHeader) -> Response;
 }
 
 #[async_trait::async_trait]
@@ -47,11 +47,11 @@ impl Bucket for Client {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_bucket_x_cos_acl(BucketAcl::PublicRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    /// let res = client.put_bucket(Some(&acl_header)).await;
+    /// let res = client.put_bucket(Some(acl_header)).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn put_bucket(&self, acl_header: Option<&AclHeader>) -> Response {
+    async fn put_bucket(&self, acl_header: Option<AclHeader>) -> Response {
         let headers = self.get_headers_with_auth("put", "/", acl_header, None, None);
         let resp = Request::put(
             self.get_full_url_from_path("/").as_str(),
@@ -109,22 +109,22 @@ impl Bucket for Client {
         max_keys: i32,
     ) -> Response {
         let mut query = HashMap::new();
-        if prefix.len() > 0 {
+        if !prefix.is_empty() {
             query.insert("prefix".to_string(), prefix.to_string());
         }
-        if delimiter.len() > 0 {
+        if !delimiter.is_empty() {
             query.insert("delimiter".to_string(), delimiter.to_string());
         }
-        if encoding_type.len() > 0 {
+        if !encoding_type.is_empty() {
             query.insert("encoding-type".to_string(), encoding_type.to_string());
         }
-        if marker.len() > 0 {
+        if !marker.is_empty() {
             query.insert("marker".to_string(), marker.to_string());
         }
         if max_keys <= 1000 && max_keys > 0 {
             query.insert("max-keys".to_string(), max_keys.to_string());
         }
-        let headers = self.get_headers_with_auth("get", "/", None, None, Some(&query));
+        let headers = self.get_headers_with_auth("get", "/", None, None, Some(query.clone()));
         let resp = Request::get(
             self.get_full_url_from_path("/").as_str(),
             Some(&query),
@@ -170,14 +170,15 @@ impl Bucket for Client {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_bucket_x_cos_acl(BucketAcl::PublicRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
-    /// let res = client.put_bucket(Some(&acl_header)).await;
+    /// let res = client.put_bucket(Some(acl_header)).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn put_bucket_acl(&self, acl_header: &AclHeader) -> Response {
+    async fn put_bucket_acl(&self, acl_header: AclHeader) -> Response {
         let mut query = HashMap::new();
         query.insert("acl".to_string(), "".to_string());
-        let headers = self.get_headers_with_auth("put", "/", Some(acl_header), None, Some(&query));
+        let headers =
+            self.get_headers_with_auth("put", "/", Some(acl_header), None, Some(query.clone()));
         let resp = Request::put(
             self.get_full_url_from_path("/").as_str(),
             Some(&query),

@@ -19,6 +19,19 @@ pub enum ObjectAcl {
     BucketOwnerFullControl,
 }
 
+impl From<ObjectAcl> for String {
+    fn from(val: ObjectAcl) -> Self {
+        match val {
+            ObjectAcl::DEFAULT => String::from("value"),
+            ObjectAcl::PRIVATE => String::from("private"),
+            ObjectAcl::PublicRead => String::from("public-read"),
+            ObjectAcl::BucketOwnerRead => String::from("bucket-owner-read"),
+            ObjectAcl::AuthenticatedRead => String::from("authenticated-read"),
+            ObjectAcl::BucketOwnerFullControl => String::from("bucket-owner-full-control"),
+        }
+    }
+}
+
 /// 存储桶的预设 ACL
 #[derive(Debug, PartialEq)]
 pub enum BucketAcl {
@@ -32,8 +45,26 @@ pub enum BucketAcl {
     AuthenticatedRead,
 }
 
+impl From<BucketAcl> for String {
+    fn from(value: BucketAcl) -> Self {
+        match value {
+            BucketAcl::PRIVATE => String::from("private"),
+            BucketAcl::PublicRead => String::from("public-read"),
+            BucketAcl::PublicReadWrite => String::from("public-read-write"),
+            BucketAcl::AuthenticatedRead => String::from("authenticated-read"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct AclHeader {
     headers: HashMap<String, String>,
+}
+
+impl Default for AclHeader {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AclHeader {
@@ -51,16 +82,8 @@ impl AclHeader {
     /// 例如 default，private，public-read 等，默认为 default
     /// 注意：如果您不需要进行对象 ACL 控制，请设置为 default 或者此项不进行设置，默认继承存储桶权限
     pub fn insert_object_x_cos_acl(&mut self, x_cos_acl: ObjectAcl) -> &mut Self {
-        let v;
-        match x_cos_acl {
-            ObjectAcl::AuthenticatedRead => v = "authenticated-read",
-            ObjectAcl::DEFAULT => v = "default",
-            ObjectAcl::PublicRead => v = "public-read",
-            ObjectAcl::PRIVATE => v = "private",
-            ObjectAcl::BucketOwnerRead => v = "bucket-owner-read",
-            ObjectAcl::BucketOwnerFullControl => v = "bucket-owner-full-control",
-        }
-        self.headers.insert("x-cos-acl".to_string(), v.to_string());
+        self.headers
+            .insert("x-cos-acl".to_string(), x_cos_acl.into());
         self
     }
 
@@ -102,14 +125,8 @@ impl AclHeader {
     /// 定义存储桶的访问控制列表（ACL）属性。枚举值请参见 ACL 概述 文档中存储桶的预设 ACL 部分，
     /// 如 private，public-read 等，默认为 private
     pub fn insert_bucket_x_cos_acl(&mut self, x_cos_acl: BucketAcl) -> &mut Self {
-        let v;
-        match x_cos_acl {
-            BucketAcl::AuthenticatedRead => v = "authenticated-read",
-            BucketAcl::PRIVATE => v = "private",
-            BucketAcl::PublicRead => v = "publish-read",
-            BucketAcl::PublicReadWrite => v = "public-read-write",
-        }
-        self.headers.insert("x-cos-acl".to_string(), v.to_string());
+        self.headers
+            .insert("x-cos-acl".to_string(), x_cos_acl.into());
         self
     }
 
@@ -137,7 +154,7 @@ mod test {
             .insert_x_cos_grant_write_acp("x_cos_grant_write_acp".to_string())
             .insert_bucket_x_cos_grant_write("x_cos_grant_write".to_string());
 
-        assert_eq!(acl_header.headers["x-cos-acl"], "publish-read".to_string());
+        assert_eq!(acl_header.headers["x-cos-acl"], "public-read".to_string());
         assert_eq!(
             acl_header.headers["x-cos-grant-read"],
             "x-cos-grant-read".to_string()

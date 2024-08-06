@@ -38,7 +38,7 @@ async fn main() {
     // 创建bucket(有权限控制)
     let mut acl = AclHeader::new();
     acl.insert_bucket_x_cos_acl(BucketAcl::PRIVATE);
-    let res = client.put_bucket(Some(&acl)).await;
+    let res = client.put_bucket(Some(acl)).await;
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
@@ -61,7 +61,7 @@ async fn main() {
     // 写入存储桶的访问控制列表（ACL）
     let mut acl_header = AclHeader::new();
     acl_header.insert_bucket_x_cos_acl(BucketAcl::PRIVATE);
-    let res = client.put_bucket_acl(&acl_header).await;
+    let res = client.put_bucket_acl(acl_header).await;
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {

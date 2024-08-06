@@ -41,14 +41,14 @@ pub struct CompleteMultipartUpload {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone)]
 pub struct Part {
-    #[serde(rename = "$unflatten=PartNumber")]
+    #[serde(rename = "PartNumber")]
     pub part_number: u64,
-    #[serde(rename = "$unflatten=ETag")]
+    #[serde(rename = "ETag")]
     pub etag: String,
 }
 
 /// 错误码
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ErrNo {
     /// 操作成功
     SUCCESS = 0,
@@ -81,14 +81,14 @@ pub enum Method {
 /// use qcos::request::ErrNo;
 /// println!("{:#?}", ErrNo::OTHER);
 /// ```
-impl ToString for ErrNo {
-    fn to_string(&self) -> String {
-        format!("{:#?}", self)
+impl Display for ErrNo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self)
     }
 }
 
 /// http请求返回类型，无论成功还是失败都返回该类型，根据`error_no`可区分是否成功
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Response {
     /// 错误码
     pub error_no: ErrNo,
@@ -124,7 +124,7 @@ impl Display for Response {
         write!(
             f,
             r#"{{"error_no": "{}","error_message": "{}","result": "{}"}}"#,
-            self.error_no.to_string(),
+            self.error_no,
             self.error_message,
             String::from_utf8_lossy(&self.result[..])
         )
@@ -325,7 +325,7 @@ impl Request {
         let mut message = "".to_string();
         if status_code.is_client_error() || status_code.is_server_error() {
             error_no = ErrNo::STATUS;
-            message = format!("{}", status_code);
+            message = status_code.to_string();
         }
         let mut headers = HashMap::new();
         for (k, v) in resp.headers() {

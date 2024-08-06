@@ -15,7 +15,12 @@ async fn main() {
     );
     // 普通上传，无权限控制
     let res = client
-        .put_object("Cargo.toml", "Cargo.toml", mime::TEXT_PLAIN_UTF_8, None)
+        .put_object(
+            "Cargo.toml",
+            "Cargo.toml",
+            Some(mime::TEXT_PLAIN_UTF_8),
+            None,
+        )
         .await;
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
@@ -29,8 +34,8 @@ async fn main() {
         .put_object(
             "Cargo.toml",
             "Cargo.toml",
-            mime::TEXT_PLAIN_UTF_8,
-            Some(&acl),
+            Some(mime::TEXT_PLAIN_UTF_8),
+            Some(acl),
         )
         .await;
     if res.error_no == ErrNo::SUCCESS {
@@ -40,13 +45,15 @@ async fn main() {
     }
     // 分块传输
     let res = client
+        .clone()
         .put_big_object(
             "Cargo.toml",
             "Cargo.toml",
-            mime::TEXT_PLAIN_UTF_8,
-            "ARCHIVE",
+            Some(mime::TEXT_PLAIN_UTF_8),
+            Some(qcos::objects::StorageClassEnum::ARCHIVE),
             None,
-            1024,
+            Some(1024 * 1024),
+            None,
         )
         .await;
     if res.error_no == ErrNo::SUCCESS {
@@ -59,7 +66,7 @@ async fn main() {
         .put_object_binary(
             std::fs::read("Cargo.toml").unwrap(),
             "Cargo.toml",
-            mime::TEXT_PLAIN_UTF_8,
+            Some(mime::TEXT_PLAIN_UTF_8),
             None,
         )
         .await;

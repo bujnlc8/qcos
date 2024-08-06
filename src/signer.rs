@@ -1,6 +1,5 @@
 //! 接口签名
 use chrono::Utc;
-use ring::hmac;
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::str;
@@ -10,16 +9,16 @@ use urlencoding::{decode, encode};
 pub struct Signer<'a> {
     method: &'a str,
     url_path: &'a str,
-    headers: Option<&'a HashMap<String, String>>,
-    query: Option<&'a HashMap<String, String>>,
+    headers: Option<HashMap<String, String>>,
+    query: Option<HashMap<String, String>>,
 }
 
 impl<'a> Signer<'a> {
     pub fn new(
         method: &'a str,
         url_path: &'a str,
-        headers: Option<&'a HashMap<String, String>>,
-        query: Option<&'a HashMap<String, String>>,
+        headers: Option<HashMap<String, String>>,
+        query: Option<HashMap<String, String>>,
     ) -> Self {
         Self {
             method,
@@ -36,20 +35,14 @@ impl<'a> Signer<'a> {
     }
 
     fn get_sign_key(&self, key_time: &str, secret_key: &str) -> String {
-        let key = hmac::Key::new(
-            hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY,
-            secret_key.to_string().as_bytes(),
-        );
-        let signature = hmac::sign(&key, key_time.as_bytes());
-        let s: Vec<String> = signature
-            .as_ref()
-            .into_iter()
+        let s: Vec<String> = hmac_sha1::hmac_sha1(secret_key.as_bytes(), key_time.as_bytes())
+            .iter()
             .map(|x| format!("{:02x?}", x))
             .collect();
         s.join("")
     }
 
-    fn encode_data(&self, data: &HashMap<String, String>) -> HashMap<String, String> {
+    fn encode_data(&self, data: HashMap<String, String>) -> HashMap<String, String> {
         let mut res = HashMap::new();
         for (k, v) in data.iter() {
             res.insert(encode(k).to_string().to_lowercase(), encode(v).to_string());
@@ -58,9 +51,9 @@ impl<'a> Signer<'a> {
     }
 
     fn get_url_param_list(&self) -> String {
-        if let Some(ref query) = self.query {
+        if let Some(query) = self.query.clone() {
             let mut keys: Vec<String> = Vec::new();
-            let encoded_data = self.encode_data(&query);
+            let encoded_data = self.encode_data(query);
             for k in encoded_data.keys() {
                 keys.push(k.to_string());
             }
@@ -71,9 +64,9 @@ impl<'a> Signer<'a> {
     }
 
     fn get_http_parameters(&self) -> String {
-        if let Some(ref query) = self.query {
+        if let Some(query) = self.query.clone() {
             let mut keys: Vec<String> = Vec::new();
-            let encoded_data = self.encode_data(&query);
+            let encoded_data = self.encode_data(query);
             for k in encoded_data.keys() {
                 keys.push(k.to_string());
             }
@@ -81,7 +74,7 @@ impl<'a> Signer<'a> {
             let mut res: Vec<String> = Vec::new();
             for key in keys {
                 let v = encoded_data.get(&key).unwrap();
-                res.push(vec![key, v.to_string()].join("="));
+                res.push([key, v.to_string()].join("="));
             }
             return res.join("&");
         }
@@ -89,9 +82,9 @@ impl<'a> Signer<'a> {
     }
 
     fn get_header_list(&self) -> String {
-        if let Some(ref headers) = self.headers {
+        if let Some(headers) = self.headers.clone() {
             let mut keys: Vec<String> = Vec::new();
-            let encoded_data = self.encode_data(&headers);
+            let encoded_data = self.encode_data(headers);
             for k in encoded_data.keys() {
                 keys.push(k.to_string());
             }
@@ -102,9 +95,9 @@ impl<'a> Signer<'a> {
     }
 
     fn get_heades(&self) -> String {
-        if let Some(ref headers) = self.headers {
+        if let Some(headers) = self.headers.clone() {
             let mut keys: Vec<String> = Vec::new();
-            let encoded_data = self.encode_data(&headers);
+            let encoded_data = self.encode_data(headers);
             for k in encoded_data.keys() {
                 keys.push(k.to_string());
             }
@@ -112,7 +105,7 @@ impl<'a> Signer<'a> {
             let mut res: Vec<String> = Vec::new();
             for key in keys {
                 let v = encoded_data.get(&key).unwrap();
-                res.push(vec![key, v.to_string()].join("="));
+                res.push([key, v.to_string()].join("="));
             }
             return res.join("&");
         }
@@ -120,7 +113,7 @@ impl<'a> Signer<'a> {
     }
 
     fn get_http_string(&self) -> String {
-        let s = vec![
+        let s = [
             self.method.to_string(),
             decode(self.url_path).unwrap().to_string(),
             self.get_http_parameters(),
@@ -137,7 +130,7 @@ impl<'a> Signer<'a> {
         let result = hasher.finalize();
         let digest: Vec<String> = result
             .as_slice()
-            .into_iter()
+            .iter()
             .map(|x| format!("{:02x?}", x))
             .collect();
         s.push(digest.join(""));
@@ -171,7 +164,7 @@ mod test {
         let mut query = HashMap::new();
         query.insert("a".to_string(), "a ".to_string());
         query.insert("B".to_string(), " b".to_string());
-        let signer = Signer::new("", "", None, Some(&query));
+        let signer = Signer::new("", "", None, Some(query));
         let s = signer.get_url_param_list();
         assert_eq!(s, "a;b");
         let s = signer.get_http_parameters();
@@ -186,7 +179,7 @@ mod test {
         let mut headers = HashMap::new();
         headers.insert("h".to_string(), "h".to_string());
         headers.insert("user-agent".to_string(), "test".to_string());
-        let signer = Signer::new("get", "/path", Some(&headers), Some(&query));
+        let signer = Signer::new("get", "/path", Some(headers), Some(query));
         assert_eq!(
             signer.get_http_string(),
             "get\n/path\na=a%20&b=%20b\nh=h&user-agent=test\n"
@@ -222,7 +215,7 @@ mod test {
         let signer = Signer::new(
             "put",
             "/exampleobject(%E8%85%BE%E8%AE%AF%E4%BA%91)",
-            Some(&headers),
+            Some(headers),
             None,
         );
         let key_time = "1557989151;1557996351";
