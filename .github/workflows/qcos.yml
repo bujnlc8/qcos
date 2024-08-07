@@ -16,8 +16,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Lint
-      run: cargo clippy
+      run: cargo clippy --features progress-bar
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --verbose --features progress-bar
     - name: Run tests
-      run: cargo test --verbose -- --nocapture
+      run: cargo test --features progress-bar --verbose -- --nocapture

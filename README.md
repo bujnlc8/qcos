@@ -3,7 +3,15 @@
 
 **异步版本** `async`/`await`
 
-本包提供腾讯云对象存储(cos) 基本的操作，包括`bucket`创建及删除，对象的上传(支持分块传输，设置分块大小及上传线程数量)、下载、删除等。
+本包提供腾讯云对象存储(cos) 基本的操作，包括`bucket`创建及删除，对象的上传、下载、删除等。
+
+上传文件支持以下特点:
+
+- 支持文件直传，推荐 1GB 以下的文件
+
+- 支持分块传输，设置分块大小和最大上传线程数量
+
+- 支持显示上传进度条(需开启`progress-bar` feature)，上传方法名称加了`_progress_bar`后缀与不显示进度条的方法区分
 
 # How to use
 
@@ -28,6 +36,21 @@ async fn main() {
     } else {
         println!("{}", res.error_message);
     }
+    // 分块上传，带进度条
+    #[cfg(feature = "progress-bar")]
+    let res = client
+        .clone()
+        .put_big_object_progress_bar(
+            "Cargo.toml",
+            "Cargo.toml",
+            Some(mime::TEXT_PLAIN_UTF_8),
+            Some(qcos::objects::StorageClassEnum::ARCHIVE),
+            None,
+            Some(1024 * 1024),
+            None,
+            None,
+        )
+        .await;
 }
 
 ```
@@ -42,5 +65,12 @@ insert into your project's cargo.toml block next line
 
 ```
 [dependencies]
-qcos = "0.1.7"
+qcos = "0.1.8"
+```
+
+如果需要开启显示进度条的方法:
+
+```
+[dependencies]
+qcos = {version = "0.1.8", features=["progress-bar"]}
 ```

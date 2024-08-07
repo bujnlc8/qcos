@@ -6,13 +6,20 @@ use crate::client;
 pub use crate::request::{
     CompleteMultipartUpload, ErrNo, InitiateMultipartUploadResult, Part, Request, Response,
 };
+#[cfg(feature = "progress-bar")]
+use futures_util::TryStreamExt;
+#[cfg(feature = "progress-bar")]
+pub use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 pub use mime;
 pub use quick_xml::de::from_str;
 pub use quick_xml::se::to_string;
 pub use reqwest::Body;
 use std::io::Cursor;
 use std::{collections::HashMap, path::PathBuf};
+use tokio::io::{AsyncReadExt, BufReader};
 use tokio::{fs, io::copy};
+#[cfg(feature = "progress-bar")]
+use tokio_util::io::ReaderStream;
 
 // 最小上传分片大小 1MB
 const PART_MIN_SIZE: u64 = 1024 * 1024;
@@ -59,6 +66,31 @@ pub trait Objects {
         acl_header: Option<acl::AclHeader>,
     ) -> Response;
 
+    /// 上传本地小文件，带进度条
+    #[cfg(feature = "progress-bar")]
+    async fn put_object_progress_bar(
+        &self,
+        file_path: &str,
+        key: &str,
+        content_type: Option<mime::Mime>,
+        acl_header: Option<acl::AclHeader>,
+        progress_style: Option<ProgressStyle>,
+    ) -> Response;
+
+    /// 上传本地大文件，带进度条
+    #[cfg(feature = "progress-bar")]
+    async fn put_big_object_progress_bar(
+        self,
+        file_path: &str,
+        key: &str,
+        content_type: Option<mime::Mime>,
+        storage_class: Option<StorageClassEnum>,
+        acl_header: Option<acl::AclHeader>,
+        part_size: Option<u64>,
+        max_threads: Option<u64>,
+        progress_style: Option<ProgressStyle>,
+    ) -> Response;
+
     /// 上传本地大文件
     async fn put_big_object(
         self,
@@ -69,6 +101,20 @@ pub trait Objects {
         acl_header: Option<acl::AclHeader>,
         part_size: Option<u64>,
         max_threads: Option<u64>,
+    ) -> Response;
+
+    /// 上传二进制流，带进度条
+    #[cfg(feature = "progress-bar")]
+    async fn put_object_binary_progress_bar<
+        T: Into<Body> + Send + Sync + tokio::io::AsyncRead + 'static,
+    >(
+        &self,
+        file: T,
+        key: &str,
+        file_size: u64,
+        content_type: Option<mime::Mime>,
+        acl_header: Option<acl::AclHeader>,
+        progress_style: Option<ProgressStyle>,
     ) -> Response;
 
     /// 上传二进制流
@@ -98,13 +144,28 @@ pub trait Objects {
         acl_header: Option<acl::AclHeader>,
     ) -> Response;
 
-    /// 分块上传
-    async fn put_object_part(
+    /// 分块上传，带进度条
+    #[cfg(feature = "progress-bar")]
+    async fn put_object_part_progress_bar(
         self,
         key: &str,
         upload_id: &str,
         part_number: u64,
         body: Vec<u8>,
+        content_type: Option<mime::Mime>,
+        acl_header: Option<acl::AclHeader>,
+        pb: ProgressBar,
+    ) -> Response;
+
+    /// 分块上传文件
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7750)
+    async fn put_object_part<T: Into<Body> + Send>(
+        self,
+        key: &str,
+        upload_id: &str,
+        part_number: u64,
+        body: T,
+        file_size: u64,
         content_type: Option<mime::Mime>,
         acl_header: Option<acl::AclHeader>,
     ) -> Response;
@@ -113,7 +174,7 @@ pub trait Objects {
     async fn put_object_complete_part(
         &self,
         key: &str,
-        etag_map: &HashMap<u64, String>,
+        etag_map: HashMap<u64, String>,
         upload_id: &str,
     ) -> Response;
 
@@ -158,9 +219,111 @@ impl Objects for client::Client {
                 )
             }
         };
-        // 设置为分块上传或者大于5G会启动分块上传
+        self.put_object_binary(file, key, content_type, acl_header)
+            .await
+    }
+
+    /// 上传本地小文件，带进度条
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7749)
+    /// # Examples
+    /// ```
+    /// use qcos::client::Client;
+    /// use qcos::objects::Objects;
+    /// use mime;
+    /// use qcos::acl::{AclHeader, ObjectAcl};
+    /// async {
+    /// let mut acl_header = AclHeader::new();
+    /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
+    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let res = client.put_object_progress_bar("Cargo.toml", "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header), None).await;
+    /// assert!(res.error_message.contains("403"));
+    /// };
+    /// ```
+    #[cfg(feature = "progress-bar")]
+    async fn put_object_progress_bar(
+        &self,
+        file_path: &str,
+        key: &str,
+        content_type: Option<mime::Mime>,
+        acl_header: Option<acl::AclHeader>,
+        progress_style: Option<ProgressStyle>,
+    ) -> Response {
+        let file = match tokio::fs::File::open(file_path).await {
+            Ok(file) => file,
+            Err(e) => {
+                return Response::new(
+                    ErrNo::IO,
+                    format!("打开文件失败: {}, {}", file_path, e),
+                    Default::default(),
+                )
+            }
+        };
+        let file_size = file.metadata().await.unwrap().len();
+        self.put_object_binary_progress_bar(
+            file,
+            key,
+            file_size,
+            content_type,
+            acl_header,
+            progress_style,
+        )
+        .await
+    }
+
+    /// 上传本地大文件，带进度条
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7749)
+    /// # 参数
+    /// file_path: 文件路径
+    /// key: 上传文件的key，如test/Cargo.lock
+    /// content_type: 文件类型
+    /// storage_class: 存储类型`StorageClassEnum` 默认STANDARD
+    /// acl_header: 请求控制
+    /// part_size: 分片大小，单位bytes，要求1M-1G之间，默认50M
+    /// max_threads: 最大上传线程数，默认20
+    /// progress_style: 进度条样式
+    ///
+    /// # Examples
+    /// ```
+    /// use qcos::client::Client;
+    /// use qcos::objects::{Objects, StorageClassEnum};
+    /// use mime;
+    /// use qcos::acl::{AclHeader, ObjectAcl};
+    /// async {
+    /// let mut acl_header = AclHeader::new();
+    /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
+    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// // 分块传输
+    /// let res = client.put_big_object_progress_bar("Cargo.toml","Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(StorageClassEnum::STANDARD), Some(acl_header), Some(1024 * 1024 * 100), None, None).await;
+    /// assert!(res.error_message.contains("403"));
+    /// };
+    /// ```
+    #[cfg(feature = "progress-bar")]
+    async fn put_big_object_progress_bar(
+        self,
+        file_path: &str,
+        key: &str,
+        content_type: Option<mime::Mime>,
+        storage_class: Option<StorageClassEnum>,
+        acl_header: Option<acl::AclHeader>,
+        part_size: Option<u64>,
+        max_threads: Option<u64>,
+        progress_style: Option<ProgressStyle>,
+    ) -> Response {
+        let part_size = part_size.unwrap_or(PART_MAX_SIZE / 10 / 2);
+        assert!((PART_MIN_SIZE..PART_MAX_SIZE).contains(&part_size));
+        assert!(max_threads.unwrap_or(20) <= 1000);
+        let mut file = match tokio::fs::File::open(file_path).await {
+            Ok(file) => file,
+            Err(e) => {
+                return Response::new(
+                    ErrNo::IO,
+                    format!("打开文件失败: {}, {}", file_path, e),
+                    Default::default(),
+                )
+            }
+        };
         let file_size = match file.metadata().await {
-            Ok(meta) => meta.len() as usize,
+            Ok(meta) => meta.len(),
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
@@ -169,27 +332,105 @@ impl Objects for client::Client {
                 )
             }
         };
-        let mut headers = self.gen_common_headers();
-        headers.insert(
-            "Content-Type".to_string(),
-            content_type
-                .unwrap_or(mime::APPLICATION_OCTET_STREAM)
-                .to_string(),
-        );
-        headers.insert("Content-Length".to_string(), file_size.to_string());
-        let url_path = self.get_path_from_object_key(key);
-        headers =
-            self.get_headers_with_auth("put", url_path.as_str(), acl_header, Some(headers), None);
-        let resp = Request::put(
-            self.get_full_url_from_path(url_path.as_str()).as_str(),
-            None,
-            Some(&headers),
-            None,
-            None,
-            Some(file),
-        )
-        .await;
-        self.make_response(resp)
+        let mut part_number = 1;
+        let mut etag_map = HashMap::new();
+        let upload_id_response = self
+            .put_object_get_upload_id(key, content_type.clone(), storage_class, acl_header.clone())
+            .await;
+        if upload_id_response.error_no != ErrNo::SUCCESS {
+            return upload_id_response;
+        }
+        let upload_id = String::from_utf8_lossy(&upload_id_response.result[..]).to_string();
+        // 默认20个线程
+        let max_threads = max_threads.unwrap_or(20);
+        let mut tasks = Vec::new();
+        let mut upload_bytes = 0;
+        let mut part_number1 = 1;
+        let multi = MultiProgress::new();
+        let sty = match progress_style{
+            Some(sty)=>sty,
+            None=> ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})").unwrap().progress_chars("#>-")};
+        loop {
+            if upload_bytes >= file_size {
+                break;
+            }
+            let mut part_size1 = part_size;
+            let last_bytes = file_size - upload_bytes;
+            // 倒数第二次上传后剩余小于1M，附加到倒数第二次上传
+            if last_bytes < part_size + PART_MIN_SIZE && last_bytes < PART_MAX_SIZE {
+                part_size1 = last_bytes;
+            }
+            let mut body: Vec<u8> = vec![0; part_size1 as usize];
+            if let Err(e) = file.read_exact(&mut body).await {
+                // 调用清理
+                self.abort_object_part(key, &upload_id).await;
+                return Response::new(
+                    ErrNo::IO,
+                    format!("读取文件失败: {}, {}", file_path, e),
+                    Default::default(),
+                );
+            }
+            upload_bytes += part_size1;
+            if tasks.len() < max_threads as usize {
+                let key = key.to_string();
+                let upload_id = upload_id.clone();
+                let this = self.clone();
+                let acl_header = acl_header.clone();
+                let content_type = content_type.clone();
+                let pb = multi.add(ProgressBar::new(body.len() as u64));
+                pb.set_style(sty.clone());
+                let handle = tokio::spawn(async move {
+                    let resp = this
+                        .clone()
+                        .put_object_part_progress_bar(
+                            &key,
+                            &upload_id,
+                            part_number,
+                            body,
+                            content_type,
+                            acl_header,
+                            pb,
+                        )
+                        .await;
+                    if resp.error_no != ErrNo::SUCCESS {
+                        // 调用清理
+                        this.abort_object_part(&key, upload_id.as_str()).await;
+                    }
+                    resp
+                });
+                tasks.push(handle);
+                part_number += 1;
+            } else {
+                for task in tasks {
+                    let response = task.await.unwrap();
+                    if response.error_no != ErrNo::SUCCESS {
+                        return response;
+                    }
+                    etag_map.insert(part_number1, response.headers["etag"].clone());
+                    part_number1 += 1;
+                }
+                tasks = Vec::new();
+            }
+        }
+        if !tasks.is_empty() {
+            for task in tasks {
+                let response = task.await.unwrap();
+                if response.error_no != ErrNo::SUCCESS {
+                    return response;
+                }
+                etag_map.insert(part_number1, response.headers["etag"].clone());
+                part_number1 += 1;
+            }
+        }
+        // 调用合并
+        let resp = self
+            .put_object_complete_part(key, etag_map, upload_id.as_str())
+            .await;
+        if resp.error_no != ErrNo::SUCCESS {
+            // 调用清理
+            self.abort_object_part(key, upload_id.as_str()).await;
+        }
+        return resp;
     }
 
     /// 上传本地大文件
@@ -200,7 +441,7 @@ impl Objects for client::Client {
     /// content_type: 文件类型
     /// storage_class: 存储类型`StorageClassEnum` 默认STANDARD
     /// acl_header: 请求控制
-    /// part_size: 分片大小，单位bytes，要求1M-1G之间，默认100M
+    /// part_size: 分片大小，单位bytes，要求1M-1G之间，默认50M
     /// max_threads: 最大上传线程数，默认20
     ///
     /// # Examples
@@ -228,8 +469,7 @@ impl Objects for client::Client {
         part_size: Option<u64>,
         max_threads: Option<u64>,
     ) -> Response {
-        use tokio::io::AsyncReadExt;
-        let part_size = part_size.unwrap_or(PART_MAX_SIZE / 10);
+        let part_size = part_size.unwrap_or(PART_MAX_SIZE / 10 / 2);
         assert!((PART_MIN_SIZE..PART_MAX_SIZE).contains(&part_size));
         assert!(max_threads.unwrap_or(20) <= 1000);
         let mut file = match tokio::fs::File::open(file_path).await {
@@ -242,7 +482,6 @@ impl Objects for client::Client {
                 )
             }
         };
-        // 设置为分块上传或者大于5G会启动分块上传
         let file_size = match file.metadata().await {
             Ok(meta) => meta.len(),
             Err(e) => {
@@ -255,13 +494,14 @@ impl Objects for client::Client {
         };
         let mut part_number = 1;
         let mut etag_map = HashMap::new();
-        let upload_id = self
+        let upload_id_response = self
             .put_object_get_upload_id(key, content_type.clone(), storage_class, acl_header.clone())
             .await;
-        if upload_id.error_no != ErrNo::SUCCESS {
-            return upload_id;
+        if upload_id_response.error_no != ErrNo::SUCCESS {
+            return upload_id_response;
         }
-        let upload_id = String::from_utf8_lossy(&upload_id.result[..]).to_string();
+        let upload_id = String::from_utf8_lossy(&upload_id_response.result[..]).to_string();
+        // 默认20个线程
         let max_threads = max_threads.unwrap_or(20);
         let mut tasks = Vec::new();
         let mut upload_bytes = 0;
@@ -301,6 +541,7 @@ impl Objects for client::Client {
                             &upload_id,
                             part_number,
                             body,
+                            part_size1,
                             content_type,
                             acl_header,
                         )
@@ -337,13 +578,61 @@ impl Objects for client::Client {
         }
         // 调用合并
         let resp = self
-            .put_object_complete_part(key, &etag_map, upload_id.as_str())
+            .put_object_complete_part(key, etag_map, upload_id.as_str())
             .await;
         if resp.error_no != ErrNo::SUCCESS {
             // 调用清理
             self.abort_object_part(key, upload_id.as_str()).await;
         }
         return resp;
+    }
+
+    /// 上传二进制流，带进度条
+    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7749)
+    /// # Examples
+    /// ```
+    /// use qcos::client::Client;
+    /// use qcos::objects::Objects;
+    /// use mime;
+    /// use qcos::acl::{AclHeader, ObjectAcl};
+    /// async {
+    /// let mut acl_header = AclHeader::new();
+    /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
+    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let buffer = tokio::fs::File::open("Cargo.toml").await.unwrap();
+    /// let res = client.put_object_binary_progress_bar(buffer, "Cargo.toml", 100, Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header), None).await;
+    /// assert!(res.error_message.contains("403"));
+    /// };
+    /// ```
+    #[cfg(feature = "progress-bar")]
+    async fn put_object_binary_progress_bar<
+        T: Into<Body> + Send + Sync + tokio::io::AsyncRead + 'static,
+    >(
+        &self,
+        file: T,
+        key: &str,
+        file_size: u64,
+        content_type: Option<mime::Mime>,
+        acl_header: Option<acl::AclHeader>,
+        progress_style: Option<ProgressStyle>,
+    ) -> Response {
+        let reader = ReaderStream::new(file);
+        let pb = ProgressBar::new(file_size);
+        let sty = match progress_style {
+            Some(sty)=>sty,
+            None=> ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})").unwrap().progress_chars("#>-")
+        };
+        pb.set_style(sty);
+        let pb1 = pb.clone();
+        let stream = reader.inspect_ok(move |chunk| {
+            pb1.inc(chunk.len() as u64);
+        });
+        let body = Body::wrap_stream(stream);
+        let resp = self
+            .put_object_binary(body, key, content_type, acl_header)
+            .await;
+        pb.finish();
+        resp
     }
 
     /// 上传二进制流
@@ -545,14 +834,50 @@ impl Objects for client::Client {
         }
     }
 
-    /// 分块上传文件
+    /// 分块上传文件，带进度条
     /// [官网文档](https://cloud.tencent.com/document/product/436/7750)
-    async fn put_object_part(
+    #[cfg(feature = "progress-bar")]
+    async fn put_object_part_progress_bar(
         self,
         key: &str,
         upload_id: &str,
         part_number: u64,
         body: Vec<u8>,
+        content_type: Option<mime::Mime>,
+        acl_header: Option<acl::AclHeader>,
+        pb: ProgressBar,
+    ) -> Response {
+        let file_size = body.len() as u64;
+        let reader = ReaderStream::new(BufReader::new(Cursor::new(body)));
+        let pb1 = pb.clone();
+        let stream = reader.inspect_ok(move |chunk| {
+            pb1.inc(chunk.len() as u64);
+        });
+        let body = Body::wrap_stream(stream);
+        let resp = self
+            .put_object_part(
+                key,
+                upload_id,
+                part_number,
+                body,
+                file_size,
+                content_type,
+                acl_header,
+            )
+            .await;
+        pb.finish();
+        resp
+    }
+
+    /// 分块上传文件，不带进度条
+    /// [官网文档](https://cloud.tencent.com/document/product/436/7750)
+    async fn put_object_part<T: Into<Body> + Send>(
+        self,
+        key: &str,
+        upload_id: &str,
+        part_number: u64,
+        body: T,
+        file_size: u64,
         content_type: Option<mime::Mime>,
         acl_header: Option<acl::AclHeader>,
     ) -> Response {
@@ -563,7 +888,8 @@ impl Objects for client::Client {
                 .unwrap_or(mime::APPLICATION_OCTET_STREAM)
                 .to_string(),
         );
-        headers.insert("Content-Length".to_string(), body.len().to_string());
+        let body: Body = body.into();
+        headers.insert("Content-Length".to_string(), file_size.to_string());
         let url_path = self.get_path_from_object_key(key);
         let mut query = HashMap::new();
         query.insert("partNumber".to_string(), part_number.to_string());
@@ -592,7 +918,7 @@ impl Objects for client::Client {
     async fn put_object_complete_part(
         &self,
         key: &str,
-        etag_map: &HashMap<u64, String>,
+        etag_map: HashMap<u64, String>,
         upload_id: &str,
     ) -> Response {
         let url_path = self.get_path_from_object_key(key);

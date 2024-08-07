@@ -43,7 +43,7 @@ async fn main() {
     } else {
         println!("{}", res.error_message);
     }
-    // 分块传输
+    // 分块上传
     let res = client
         .clone()
         .put_big_object(
@@ -56,6 +56,27 @@ async fn main() {
             None,
         )
         .await;
+    if res.error_no == ErrNo::SUCCESS {
+        println!("SUCCESS");
+    } else {
+        println!("{}", res.error_message);
+    }
+    // 分块上传，带进度条
+    #[cfg(feature = "progress-bar")]
+    let res = client
+        .clone()
+        .put_big_object_progress_bar(
+            "Cargo.toml",
+            "Cargo.toml",
+            Some(mime::TEXT_PLAIN_UTF_8),
+            Some(qcos::objects::StorageClassEnum::ARCHIVE),
+            None,
+            Some(1024 * 1024),
+            None,
+            None,
+        )
+        .await;
+    #[cfg(feature = "progress-bar")]
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
