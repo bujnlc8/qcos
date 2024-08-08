@@ -9,8 +9,8 @@ use qcos::service::Service;
 #[tokio::main]
 async fn main() {
     let client = Client::new(
-        "Your secrect id",
-        "Your secrect key",
+        "your secrect id",
+        "your secrect key",
         "bucket-name",
         "region",
     );

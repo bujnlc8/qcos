@@ -10,7 +10,7 @@
 
  #[tokio::main]
  async fn main() {
-    let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// 上传文件
     let res = client.put_object("Cargo.toml", "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), None).await;
     /// 删除文件

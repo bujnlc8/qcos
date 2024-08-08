@@ -82,7 +82,7 @@ async fn main() {
     } else {
         println!("{}", res.error_message);
     }
-    // 直接上传二进制流
+    // 直接上传二进制数据
     let res = client
         .put_object_binary(
             std::fs::read("Cargo.toml").unwrap(),
@@ -104,13 +104,26 @@ async fn main() {
         println!("{}", res.error_message);
     }
     // 将对象存储对象名称为Cargo.toml的文件下载到本地，名称为local_Cargo.toml
-    let res = client.get_object("Cargo.toml", "local_Cargo.toml").await;
+    let res = client
+        .get_object("Cargo.toml", "local_Cargo.toml", Some(10))
+        .await;
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
     } else {
         println!("{}", res.error_message);
     }
 
+    // 将对象存储对象名称为Cargo.toml的文件下载到本地，名称为local_Cargo.toml.1，并显示下载进度条
+    #[cfg(feature = "progress-bar")]
+    let res = client
+        .get_object_progress_bar("Cargo.toml", "local_Cargo.toml", Some(10), None)
+        .await;
+    #[cfg(feature = "progress-bar")]
+    if res.error_no == ErrNo::SUCCESS {
+        println!("SUCCESS");
+    } else {
+        println!("{}", res.error_message);
+    }
     // 获取预签名下载URL
     let url = client.get_presigned_download_url("Cargo.toml", 3600);
     println!("full_url: {}", url);

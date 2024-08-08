@@ -11,7 +11,8 @@ use crate::signer::Signer;
 /// assert_eq!(client.get_host(), "bucket.cos.region.myqcloud.com");
 ///```
 use chrono::Utc;
-use std::collections::HashMap;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, DATE, HOST};
+use std::{collections::HashMap, str::FromStr};
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -48,11 +49,11 @@ impl Client {
     }
 
     // 生成通用的request headers, 包含`Host`及`Date`
-    pub fn gen_common_headers(&self) -> HashMap<String, String> {
-        let mut headers = HashMap::new();
-        headers.insert("Host".to_string(), self.get_host());
+    pub fn get_common_headers(&self) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(HOST, HeaderValue::from_str(&self.get_host()).unwrap());
         let now_str = Utc::now().format("%a, %d %b %Y %T GMT").to_string();
-        headers.insert("Date".to_string(), now_str);
+        headers.insert(DATE, HeaderValue::from_str(&now_str).unwrap());
         headers
     }
 
@@ -82,18 +83,19 @@ impl Client {
         method: &str,
         url_path: &str,
         acl_header: Option<AclHeader>,
-        origin_headers: Option<HashMap<String, String>>,
+        origin_headers: Option<HeaderMap>,
         query: Option<HashMap<String, String>>,
-    ) -> HashMap<String, String> {
-        let mut headers;
-        if let Some(origin_headers) = origin_headers {
-            headers = origin_headers;
-        } else {
-            headers = self.gen_common_headers();
-        }
+    ) -> HeaderMap {
+        let mut headers = match origin_headers {
+            Some(header) => header,
+            None => self.get_common_headers(),
+        };
         if let Some(acl_header) = acl_header {
             for (k, v) in acl_header.get_headers() {
-                headers.insert(k.to_string(), v.to_string());
+                headers.insert(
+                    HeaderName::from_str(k).unwrap(),
+                    HeaderValue::from_str(v).unwrap(),
+                );
             }
         }
         let signature = Signer::new(method, url_path, Some(headers.clone()), query).get_signature(
@@ -101,24 +103,21 @@ impl Client {
             self.get_secrect_id(),
             7200,
         );
-        headers.insert("Authorization".to_string(), signature);
+        headers.insert(AUTHORIZATION, HeaderValue::from_str(&signature).unwrap());
         headers
     }
 
     pub fn make_response(&self, resp: Result<Response, Response>) -> Response {
-        match resp {
-            Ok(e) => e,
-            Err(e) => e,
-        }
+        resp.unwrap_or_else(|x| x)
     }
 
     /// 获取预签名下载URL
-    /// 见[官网文档](https://cloud.tencent.com/document/product/436/35153)
+    /// <https://cloud.tencent.com/document/product/436/35153>
     pub fn get_presigned_download_url(&self, object_key: &str, expire: u32) -> String {
         let url_path = self.get_path_from_object_key(object_key);
         let full_url = self.get_full_url_from_path(url_path.as_str());
-        let mut headers = HashMap::new();
-        headers.insert("host".to_string(), self.get_host());
+        let mut headers = HeaderMap::new();
+        headers.insert(HOST, HeaderValue::from_str(&self.get_host()).unwrap());
         let signature = Signer::new("get", &url_path, Some(headers), None).get_signature(
             self.get_secrect_key(),
             self.get_secrect_id(),

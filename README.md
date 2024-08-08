@@ -1,7 +1,7 @@
 [![Crates.io](https://img.shields.io/crates/v/qcos?style=flat-square)](https://crates.io/crates/qcos)
 [![qcos](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml/badge.svg)](https://github.com/bujnlc8/qcos/actions/workflows/qcos.yml)
 
-**异步版本** `async`/`await`
+# 腾讯云对象存储(COS) Rust
 
 本包提供腾讯云对象存储(cos) 基本的操作，包括`bucket`创建及删除，对象的上传、下载、删除等。
 
@@ -13,7 +13,9 @@
 
 - 支持显示上传进度条(需开启`progress-bar` feature)，上传方法名称加了`_progress_bar`后缀与不显示进度条的方法区分
 
-# How to use
+从`0.1.9`版本之后，下载文件也支持显示进度条 🚀🚀🚀
+
+## How to use
 
 ```rust
 use qcos::acl::{AclHeader, ObjectAcl};
@@ -51,15 +53,19 @@ async fn main() {
             None,
         )
         .await;
+
+    // 下载文件到本地，启用10个线程，并开启进度条
+    #[cfg(feature = "progress-bar")]
+    let res = client
+        .get_object_progress_bar("Cargo.toml", "local_Cargo.toml", Some(10), None)
+        .await;
 }
 
 ```
 
-如果操作成功，会打印出`success`, 否则会打印出失败原因。
-
 更多的例子请参考[examples](https://github.com/bujnlc8/qcos/tree/master/examples)。
 
-# Installation
+## Installation
 
 insert into your project's cargo.toml block next line
 

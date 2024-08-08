@@ -1,5 +1,6 @@
 //! 接口签名
 use chrono::Utc;
+use reqwest::header::HeaderMap;
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::str;
@@ -9,7 +10,7 @@ use urlencoding::{decode, encode};
 pub struct Signer<'a> {
     method: &'a str,
     url_path: &'a str,
-    headers: Option<HashMap<String, String>>,
+    headers: Option<HeaderMap>,
     query: Option<HashMap<String, String>>,
 }
 
@@ -17,7 +18,7 @@ impl<'a> Signer<'a> {
     pub fn new(
         method: &'a str,
         url_path: &'a str,
-        headers: Option<HashMap<String, String>>,
+        headers: Option<HeaderMap>,
         query: Option<HashMap<String, String>>,
     ) -> Self {
         Self {
@@ -60,7 +61,7 @@ impl<'a> Signer<'a> {
             keys.sort();
             return keys.join(";");
         }
-        "".to_string()
+        String::new()
     }
 
     fn get_http_parameters(&self) -> String {
@@ -78,26 +79,37 @@ impl<'a> Signer<'a> {
             }
             return res.join("&");
         }
-        "".to_string()
+        String::new()
+    }
+
+    fn header_map_to_hash_map(&self, headers: HeaderMap) -> HashMap<String, String> {
+        let mut res = HashMap::new();
+        for (k, v) in headers {
+            res.insert(
+                k.unwrap().to_string().to_lowercase(),
+                v.to_str().unwrap().to_string(),
+            );
+        }
+        res
     }
 
     fn get_header_list(&self) -> String {
         if let Some(headers) = self.headers.clone() {
             let mut keys: Vec<String> = Vec::new();
-            let encoded_data = self.encode_data(headers);
+            let encoded_data = self.encode_data(self.header_map_to_hash_map(headers));
             for k in encoded_data.keys() {
                 keys.push(k.to_string());
             }
             keys.sort();
             return keys.join(";");
         }
-        "".to_string()
+        String::new()
     }
 
     fn get_heades(&self) -> String {
         if let Some(headers) = self.headers.clone() {
             let mut keys: Vec<String> = Vec::new();
-            let encoded_data = self.encode_data(headers);
+            let encoded_data = self.encode_data(self.header_map_to_hash_map(headers));
             for k in encoded_data.keys() {
                 keys.push(k.to_string());
             }
@@ -109,7 +121,7 @@ impl<'a> Signer<'a> {
             }
             return res.join("&");
         }
-        "".to_string()
+        String::new()
     }
 
     fn get_http_string(&self) -> String {
@@ -150,8 +162,12 @@ impl<'a> Signer<'a> {
 
 #[cfg(test)]
 mod test {
+    use reqwest::header::{
+        HeaderMap, HeaderName, HeaderValue, CONTENT_LENGTH, CONTENT_TYPE, DATE, HOST, USER_AGENT,
+    };
+
     use crate::signer::Signer;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, str::FromStr};
 
     #[test]
     fn test_get_key_time() {
@@ -176,9 +192,12 @@ mod test {
         let mut query = HashMap::new();
         query.insert("a".to_string(), "a ".to_string());
         query.insert("B".to_string(), " b".to_string());
-        let mut headers = HashMap::new();
-        headers.insert("h".to_string(), "h".to_string());
-        headers.insert("user-agent".to_string(), "test".to_string());
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_str("h").unwrap(),
+            HeaderValue::from_str("h").unwrap(),
+        );
+        headers.insert(USER_AGENT, HeaderValue::from_str("test").unwrap());
         let signer = Signer::new("get", "/path", Some(headers), Some(query));
         assert_eq!(
             signer.get_http_string(),
@@ -192,25 +211,28 @@ mod test {
 
     #[test]
     fn test_get_signature() {
-        let mut headers = HashMap::new();
-        headers.insert("Content-Type".to_string(), "text/plain".to_string());
-        headers.insert("Content-Length".to_string(), "13".to_string());
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str("text/plain").unwrap());
+        headers.insert(CONTENT_LENGTH, HeaderValue::from(13));
         headers.insert(
-            "Host".to_string(),
-            "examplebucket-1250000000.cos.ap-beijing.myqcloud.com".to_string(),
+            HOST,
+            HeaderValue::from_str("examplebucket-1250000000.cos.ap-beijing.myqcloud.com").unwrap(),
         );
         headers.insert(
-            "Content-MD5".to_string(),
-            "mQ/fVh815F3k6TAUm8m0eg==".to_string(),
-        );
-        headers.insert("x-cos-acl".to_string(), "private".to_string());
-        headers.insert(
-            "x-cos-grant-read".to_string(),
-            "uin=\"100000000011\"".to_string(),
+            HeaderName::from_str("Content-MD5").unwrap(),
+            HeaderValue::from_str("mQ/fVh815F3k6TAUm8m0eg==").unwrap(),
         );
         headers.insert(
-            "Date".to_string(),
-            "Thu, 16 May 2019 06:45:51 GMT".to_string(),
+            HeaderName::from_str("x-cos-acl").unwrap(),
+            HeaderValue::from_str("private").unwrap(),
+        );
+        headers.insert(
+            HeaderName::from_str("x-cos-grant-read").unwrap(),
+            HeaderValue::from_str("uin=\"100000000011\"").unwrap(),
+        );
+        headers.insert(
+            DATE,
+            HeaderValue::from_str("Thu, 16 May 2019 06:45:51 GMT").unwrap(),
         );
         let signer = Signer::new(
             "put",

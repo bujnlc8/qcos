@@ -1,5 +1,7 @@
 /*! 查询bucket列表
 */
+use reqwest::header::{HeaderValue, HOST};
+
 use crate::client::Client;
 use crate::request::Request;
 use crate::request::Response;
@@ -19,7 +21,7 @@ impl Service for Client {
     use qcos::client::Client;
     use qcos::service::Service;
     async {
-    let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     let resp = client.get_bucket_list().await;
     assert!(resp.error_message.contains("403"));
     };
@@ -27,8 +29,8 @@ impl Service for Client {
     */
     async fn get_bucket_list(&self) -> Response {
         let host = self.get_host_for_bucket_query();
-        let mut headers = self.gen_common_headers();
-        headers.insert("Host".to_string(), host);
+        let mut headers = self.get_common_headers();
+        headers.insert(HOST, HeaderValue::from_str(&host).unwrap());
         headers = self.get_headers_with_auth("get", "/", None, Some(headers), None);
         let resp = Request::get(
             format!("https://{}/", self.get_host_for_bucket_query()).as_str(),

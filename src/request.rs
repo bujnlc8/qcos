@@ -2,13 +2,10 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
-use bytes::Bytes;
-
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::HeaderMap;
 use reqwest::Body;
 use serde_json::value::Value;
 use std::convert::From;
-use std::str::FromStr;
 use std::time::Duration;
 
 use reqwest;
@@ -95,7 +92,7 @@ pub struct Response {
     /// 错误信息
     pub error_message: String,
     /// 接口返回信息，当接口返回错误时也可能有值
-    pub result: Bytes,
+    pub result: Vec<u8>,
     /// 接口返回的headers, 有些接口需要拿到头部信息进行校验
     pub headers: HashMap<String, String>,
 }
@@ -113,7 +110,7 @@ impl From<reqwest::Error> for Response {
         Response {
             error_no: e,
             error_message: value.to_string(),
-            result: Bytes::from(""),
+            result: Vec::new(),
             headers: HashMap::new(),
         }
     }
@@ -126,23 +123,38 @@ impl Display for Response {
             r#"{{"error_no": "{}","error_message": "{}","result": "{}"}}"#,
             self.error_no,
             self.error_message,
-            String::from_utf8_lossy(&self.result[..])
+            String::from_utf8_lossy(&self.result)
         )
     }
 }
 
+impl Default for Response {
+    fn default() -> Self {
+        Self {
+            error_no: ErrNo::SUCCESS,
+            error_message: Default::default(),
+            result: Default::default(),
+            headers: Default::default(),
+        }
+    }
+}
+
 impl Response {
-    pub fn new(error_no: ErrNo, error_message: String, result: String) -> Self {
+    pub fn new(error_no: ErrNo, error_message: String, result: Vec<u8>) -> Self {
         Self {
             error_no,
             error_message,
-            result: Bytes::from(result),
+            result,
             headers: HashMap::new(),
         }
     }
-    /// 生成一个空的成功的`Response`对象
-    pub fn blank_success() -> Self {
-        Self::new(ErrNo::SUCCESS, "".to_string(), "".to_string())
+    pub fn data_success(result: Vec<u8>) -> Self {
+        Self {
+            error_no: ErrNo::SUCCESS,
+            error_message: Default::default(),
+            result,
+            headers: Default::default(),
+        }
     }
 }
 
@@ -151,19 +163,10 @@ type Data = Value;
 /// 请求封装类
 impl Request {
     /// 从传入的`headers`参数生成`reqwest::blocking::ClientBuilder`
-    fn get_builder_with_headers(
-        headers: Option<&HashMap<String, String>>,
-    ) -> reqwest::ClientBuilder {
+    fn get_builder_with_headers(headers: Option<&HeaderMap>) -> reqwest::ClientBuilder {
         let mut builder = reqwest::ClientBuilder::new();
         if let Some(headers) = headers {
-            let mut header = HeaderMap::new();
-            for (k, v) in headers {
-                header.insert(
-                    HeaderName::from_str(k).unwrap(),
-                    HeaderValue::from_str(v).unwrap(),
-                );
-            }
-            builder = builder.default_headers(header);
+            builder = builder.default_headers(headers.clone());
         }
         builder
     }
@@ -171,17 +174,18 @@ impl Request {
     /// # Examples
     /// ```
     /// use qcos::request::Request;
-    /// use std::collections::HashMap;
+    /// use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+    /// use std::str::FromStr;
     /// async {
-    /// let mut headers = HashMap::new();
-    /// headers.insert("x-test-header".to_string(), "test-header".to_string());
+    /// let mut headers = HeaderMap::new();
+    /// headers.insert(HeaderName::from_str("x-test-header").unwrap(), HeaderValue::from_str("test-header").unwrap());
     /// Request::head("https://www.baiduc.com", None, Some(&headers)).await;
     /// };
     /// ```
     pub async fn head(
         url: &str,
         query: Option<&HashMap<String, String>>,
-        headers: Option<&HashMap<String, String>>,
+        headers: Option<&HeaderMap>,
     ) -> Result<Response, Response> {
         Request::do_req(
             Method::Head,
@@ -198,17 +202,18 @@ impl Request {
     /// # Examples
     /// ```
     /// use qcos::request::Request;
-    /// use std::collections::HashMap;
+    /// use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+    /// use std::str::FromStr;
     /// async {
-    /// let mut headers = HashMap::new();
-    /// headers.insert("x-test-header".to_string(), "test-header".to_string());
+    /// let mut headers = HeaderMap::new();
+    /// headers.insert(HeaderName::from_str("x-test-header").unwrap(), HeaderValue::from_str("test-header").unwrap());
     /// Request::get("https://www.baiduc.com", None, Some(&headers)).await;
     /// };
     /// ```
     pub async fn get(
         url: &str,
         query: Option<&HashMap<String, String>>,
-        headers: Option<&HashMap<String, String>>,
+        headers: Option<&HeaderMap>,
     ) -> Result<Response, Response> {
         Request::do_req(
             Method::Get,
@@ -249,7 +254,7 @@ impl Request {
     pub async fn post<T: Into<Body>>(
         url: &str,
         query: Option<&HashMap<String, String>>,
-        headers: Option<&HashMap<String, String>>,
+        headers: Option<&HeaderMap>,
         form: Option<&HashMap<&str, Data>>,
         json: Option<&HashMap<&str, Data>>,
         body_data: Option<T>,
@@ -261,7 +266,7 @@ impl Request {
     pub async fn put<T: Into<Body>>(
         url: &str,
         query: Option<&HashMap<String, String>>,
-        headers: Option<&HashMap<String, String>>,
+        headers: Option<&HeaderMap>,
         form: Option<&HashMap<&str, Data>>,
         json: Option<&HashMap<&str, Data>>,
         body_data: Option<T>,
@@ -273,7 +278,7 @@ impl Request {
     pub async fn delete(
         url: &str,
         query: Option<&HashMap<String, String>>,
-        headers: Option<&HashMap<String, String>>,
+        headers: Option<&HeaderMap>,
         form: Option<&HashMap<&str, Data>>,
         json: Option<&HashMap<&str, Data>>,
     ) -> Result<Response, Response> {
@@ -293,7 +298,7 @@ impl Request {
         method: Method,
         url: &str,
         query: Option<&HashMap<String, String>>,
-        headers: Option<&HashMap<String, String>>,
+        headers: Option<&HeaderMap>,
         form: Option<&HashMap<&str, Data>>,
         json: Option<&HashMap<&str, Data>>,
         body_data: Option<T>,
@@ -322,7 +327,7 @@ impl Request {
         let resp = req.send().await?;
         let status_code = resp.status();
         let mut error_no = ErrNo::SUCCESS;
-        let mut message = "".to_string();
+        let mut message = String::new();
         if status_code.is_client_error() || status_code.is_server_error() {
             error_no = ErrNo::STATUS;
             message = status_code.to_string();
@@ -334,7 +339,7 @@ impl Request {
         Ok(Response {
             error_no,
             error_message: message,
-            result: resp.bytes().await?,
+            result: resp.bytes().await?.to_vec(),
             headers,
         })
     }
@@ -343,14 +348,20 @@ impl Request {
 #[cfg(test)]
 mod tests {
     use crate::request::{ErrNo, Request};
-    use reqwest::Body;
+    use reqwest::{
+        header::{HeaderMap, HeaderValue, USER_AGENT},
+        Body,
+    };
     use serde_json::json;
     use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_get() {
-        let mut header = HashMap::new();
-        header.insert("user-agent".to_string(), "test-user-agent".to_string());
+        let mut header = HeaderMap::new();
+        header.insert(
+            USER_AGENT,
+            HeaderValue::from_str("test-user-agent").unwrap(),
+        );
         let mut query = HashMap::new();
         query.insert("a".to_string(), "a".to_string());
         query.insert("b".to_string(), "b".to_string());

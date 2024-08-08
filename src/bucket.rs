@@ -37,7 +37,7 @@ pub trait Bucket {
 #[async_trait::async_trait]
 impl Bucket for Client {
     /// 创建一个存储桶
-    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7738)
+    /// <https://cloud.tencent.com/document/product/436/7738>
     /// # Examples
     /// ```
     /// use qcos::client::Client;
@@ -46,7 +46,7 @@ impl Bucket for Client {
     /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_bucket_x_cos_acl(BucketAcl::PublicRead);
-    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.put_bucket(Some(acl_header)).await;
     /// assert!(res.error_message.contains("403"));
     /// };
@@ -65,13 +65,13 @@ impl Bucket for Client {
         self.make_response(resp)
     }
     /// 删除指定的存储桶。该 API 的请求者需要对存储桶有写入权限。
-    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7732)
+    /// <https://cloud.tencent.com/document/product/436/7732>
     /// # Examples
     /// ```
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
     /// async {
-    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.delete_bucket().await;
     /// assert!(res.error_message.contains("403"));
     /// };
@@ -89,13 +89,13 @@ impl Bucket for Client {
         self.make_response(resp)
     }
     /// 列出该存储桶内的部分或者全部对象。该 API 的请求者需要对存储桶有读取权限。
-    /// 见[官网文档](https://cloud.tencent.com/document/product/436/7734)
+    /// <https://cloud.tencent.com/document/product/436/7734>
     /// # Examples
     /// ```
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
     /// async {
-    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.list_objects("prefix", "", "", "/", 100).await;
     /// assert!(res.error_message.contains("403"));
     /// };
@@ -135,7 +135,7 @@ impl Bucket for Client {
     }
 
     /// 确认该存储桶是否存在，是否有权限访问
-    /// [官网文档](https://cloud.tencent.com/document/product/436/7735)
+    /// <https://cloud.tencent.com/document/product/436/7735>
     /// 存储桶存在且有读取权限，返回 `SUCCESS`
     /// 无存储桶读取权限，返回 `ErrNo::STATUS`, error_message包含403。
     /// 存储桶不存在，返回 `ErrNo::STATUS`, error_message包含404。
@@ -144,7 +144,7 @@ impl Bucket for Client {
     /// use qcos::client::Client;
     /// use qcos::bucket::Bucket;
     /// async {
-    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.check_bucket().await;
     /// assert!(res.error_message.contains("403"));
     /// };
@@ -160,7 +160,7 @@ impl Bucket for Client {
         self.make_response(resp)
     }
     /// 写入存储桶的访问控制列表
-    /// [官网文档](https://cloud.tencent.com/document/product/436/7737)
+    /// <https://cloud.tencent.com/document/product/436/7737>
     /// # Examples
     /// ```
     /// use qcos::client::Client;
@@ -169,14 +169,14 @@ impl Bucket for Client {
     /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_bucket_x_cos_acl(BucketAcl::PublicRead);
-    /// let client = Client::new("foo", "bar", "qcloudtest-1256650966", "ap-guangzhou");
+    /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.put_bucket(Some(acl_header)).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     async fn put_bucket_acl(&self, acl_header: AclHeader) -> Response {
         let mut query = HashMap::new();
-        query.insert("acl".to_string(), "".to_string());
+        query.insert("acl".to_string(), String::new());
         let headers =
             self.get_headers_with_auth("put", "/", Some(acl_header), None, Some(query.clone()));
         let resp = Request::put(
