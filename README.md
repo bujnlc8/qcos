@@ -67,16 +67,14 @@ async fn main() {
 
 ## Installation
 
-insert into your project's cargo.toml block next line
-
 ```
 [dependencies]
-qcos = "0.1.8"
+qcos = "0.1.9"
 ```
 
 如果需要开启显示进度条的方法:
 
 ```
 [dependencies]
-qcos = {version = "0.1.8", features=["progress-bar"]}
+qcos = {version = "0.1.9", features=["progress-bar"]}
 ```
