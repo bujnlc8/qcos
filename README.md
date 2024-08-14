@@ -18,6 +18,7 @@
 ## How to use
 
 ```rust
+use std::path::PathBuf;
 use qcos::acl::{AclHeader, ObjectAcl};
 use qcos::client::Client;
 use qcos::objects::{mime, ErrNo, Objects};
@@ -32,7 +33,8 @@ async fn main() {
     );
     let mut acl_header = AclHeader::new();
     acl_header.insert_object_x_cos_acl(ObjectAcl::PublicRead);
-    let res = client.put_object("test.png", "test.png", Some(mime::IMAGE_PNG), Some(acl_header)).await;
+    let file_path = PathBuf::from("test.png");
+    let res = client.put_object(&file_path, "test.png", Some(mime::IMAGE_PNG), Some(acl_header)).await;
     if res.error_no == ErrNo::SUCCESS {
         println!("success");
     } else {
@@ -43,9 +45,9 @@ async fn main() {
     let res = client
         .clone()
         .put_big_object_progress_bar(
-            "Cargo.toml",
-            "Cargo.toml",
-            Some(mime::TEXT_PLAIN_UTF_8),
+            &file_path,
+            "test.png",
+            None,
             Some(qcos::objects::StorageClassEnum::ARCHIVE),
             None,
             Some(1024 * 1024),
@@ -69,12 +71,12 @@ async fn main() {
 
 ```
 [dependencies]
-qcos = "0.1.9"
+qcos = "0.1.10"
 ```
 
 如果需要开启显示进度条的方法:
 
 ```
 [dependencies]
-qcos = {version = "0.1.9", features=["progress-bar"]}
+qcos = {version = "0.1.10", features=["progress-bar"]}
 ```

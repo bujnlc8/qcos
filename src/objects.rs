@@ -66,7 +66,7 @@ pub trait Objects {
     /// 上传本地小文件
     async fn put_object(
         &self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         acl_header: Option<acl::AclHeader>,
@@ -76,7 +76,7 @@ pub trait Objects {
     #[cfg(feature = "progress-bar")]
     async fn put_object_progress_bar(
         &self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         acl_header: Option<acl::AclHeader>,
@@ -87,7 +87,7 @@ pub trait Objects {
     #[cfg(feature = "progress-bar")]
     async fn put_big_object_progress_bar(
         self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         storage_class: Option<StorageClassEnum>,
@@ -100,7 +100,7 @@ pub trait Objects {
     /// 上传本地大文件
     async fn put_big_object(
         self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         storage_class: Option<StorageClassEnum>,
@@ -227,17 +227,18 @@ impl Objects for client::Client {
     /// use qcos::objects::Objects;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
+    /// use std::path::PathBuf;
     /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
-    /// let res = client.put_object("Cargo.toml", "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header)).await;
+    /// let res = client.put_object(&PathBuf::from("Cargo.toml"), "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header)).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     async fn put_object(
         &self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         acl_header: Option<acl::AclHeader>,
@@ -247,7 +248,7 @@ impl Objects for client::Client {
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
-                    format!("打开文件失败: {}, {}", file_path, e),
+                    format!("打开文件失败: {:?}, {}", file_path, e),
                     Default::default(),
                 )
             }
@@ -271,18 +272,19 @@ impl Objects for client::Client {
     /// use qcos::objects::Objects;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
+    /// use std::path::PathBuf;
     /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
-    /// let res = client.put_object_progress_bar("Cargo.toml", "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header), None).await;
+    /// let res = client.put_object_progress_bar(&PathBuf::from("Cargo.toml"), "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header), None).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
     async fn put_object_progress_bar(
         &self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         acl_header: Option<acl::AclHeader>,
@@ -293,7 +295,7 @@ impl Objects for client::Client {
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
-                    format!("打开文件失败: {}, {}", file_path, e),
+                    format!("打开文件失败: {:?}, {}", file_path, e),
                     Default::default(),
                 )
             }
@@ -328,19 +330,20 @@ impl Objects for client::Client {
     /// use qcos::objects::{Objects, StorageClassEnum};
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
+    /// use std::path::PathBuf;
     /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// // 分块传输
-    /// let res = client.put_big_object_progress_bar("Cargo.toml","Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(StorageClassEnum::STANDARD), Some(acl_header), Some(1024 * 1024 * 100), None, None).await;
+    /// let res = client.put_big_object_progress_bar(&PathBuf::from("Cargo.toml"), "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(StorageClassEnum::STANDARD), Some(acl_header), Some(1024 * 1024 * 100), None, None).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
     async fn put_big_object_progress_bar(
         self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         storage_class: Option<StorageClassEnum>,
@@ -357,7 +360,7 @@ impl Objects for client::Client {
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
-                    format!("打开文件失败: {}, {}", file_path, e),
+                    format!("打开文件失败: {:?}, {}", file_path, e),
                     Default::default(),
                 )
             }
@@ -367,7 +370,7 @@ impl Objects for client::Client {
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
-                    format!("获取文件大小失败: {}, {}", file_path, e),
+                    format!("获取文件大小失败: {:?}, {}", file_path, e),
                     Default::default(),
                 )
             }
@@ -406,7 +409,7 @@ impl Objects for client::Client {
                 self.abort_object_part(key, &upload_id).await;
                 return Response::new(
                     ErrNo::IO,
-                    format!("读取文件失败: {}, {}", file_path, e),
+                    format!("读取文件失败: {:?}, {}", file_path, e),
                     Default::default(),
                 );
             }
@@ -490,18 +493,19 @@ impl Objects for client::Client {
     /// use qcos::objects::{Objects, StorageClassEnum};
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
+    /// use std::path::PathBuf;
     /// async {
     /// let mut acl_header = AclHeader::new();
     /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// // 分块传输
-    /// let res = client.put_big_object("Cargo.toml","Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(StorageClassEnum::STANDARD), Some(acl_header), Some(1024 * 1024 * 100), None).await;
+    /// let res = client.put_big_object(&PathBuf::from("Cargo.toml"),"Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(StorageClassEnum::STANDARD), Some(acl_header), Some(1024 * 1024 * 100), None).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     async fn put_big_object(
         self,
-        file_path: &str,
+        file_path: &PathBuf,
         key: &str,
         content_type: Option<mime::Mime>,
         storage_class: Option<StorageClassEnum>,
@@ -517,7 +521,7 @@ impl Objects for client::Client {
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
-                    format!("打开文件失败: {}, {}", file_path, e),
+                    format!("打开文件失败: {:?}, {}", file_path, e),
                     Default::default(),
                 )
             }
@@ -527,7 +531,7 @@ impl Objects for client::Client {
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
-                    format!("获取文件大小失败: {}, {}", file_path, e),
+                    format!("获取文件大小失败: {:?}, {}", file_path, e),
                     Default::default(),
                 )
             }
@@ -562,7 +566,7 @@ impl Objects for client::Client {
                 self.abort_object_part(key, &upload_id).await;
                 return Response::new(
                     ErrNo::IO,
-                    format!("读取文件失败: {}, {}", file_path, e),
+                    format!("读取文件失败: {:?}, {}", file_path, e),
                     Default::default(),
                 );
             }

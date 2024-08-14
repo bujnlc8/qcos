@@ -1,5 +1,7 @@
 //! 上传文件
 
+use std::path::PathBuf;
+
 use qcos::acl::{AclHeader, ObjectAcl};
 use qcos::client::Client;
 use qcos::objects::{mime, Objects};
@@ -14,13 +16,9 @@ async fn main() {
         "region",
     );
     // 普通上传，无权限控制
+    let file_path = PathBuf::from("Cargo.toml");
     let res = client
-        .put_object(
-            "Cargo.toml",
-            "Cargo.toml",
-            Some(mime::TEXT_PLAIN_UTF_8),
-            None,
-        )
+        .put_object(&file_path, "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), None)
         .await;
     if res.error_no == ErrNo::SUCCESS {
         println!("SUCCESS");
@@ -32,7 +30,7 @@ async fn main() {
     acl.insert_object_x_cos_acl(ObjectAcl::PRIVATE);
     let res = client
         .put_object(
-            "Cargo.toml",
+            &file_path,
             "Cargo.toml",
             Some(mime::TEXT_PLAIN_UTF_8),
             Some(acl),
@@ -47,7 +45,7 @@ async fn main() {
     let res = client
         .clone()
         .put_big_object(
-            "Cargo.toml",
+            &file_path,
             "Cargo.toml",
             Some(mime::TEXT_PLAIN_UTF_8),
             Some(qcos::objects::StorageClassEnum::ARCHIVE),
@@ -66,7 +64,7 @@ async fn main() {
     let res = client
         .clone()
         .put_big_object_progress_bar(
-            "Cargo.toml",
+            &file_path,
             "Cargo.toml",
             Some(mime::TEXT_PLAIN_UTF_8),
             Some(qcos::objects::StorageClassEnum::ARCHIVE),
@@ -85,7 +83,7 @@ async fn main() {
     // 直接上传二进制数据
     let res = client
         .put_object_binary(
-            std::fs::read("Cargo.toml").unwrap(),
+            std::fs::read(&file_path).unwrap(),
             "Cargo.toml",
             Some(mime::TEXT_PLAIN_UTF_8),
             None,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10] - 2024-08-14
+
+### Changed
+
+- 将文件上传路径字段`file_path`的类型从`&str`改成`&PathBuf`
+
 ## [0.1.9] - 2024-08-08
 
 ### Changed
