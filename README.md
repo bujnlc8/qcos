@@ -71,12 +71,12 @@ async fn main() {
 
 ```
 [dependencies]
-qcos = "0.1.10"
+qcos = "0.1.11"
 ```
 
 如果需要开启显示进度条的方法:
 
 ```
 [dependencies]
-qcos = {version = "0.1.10", features=["progress-bar"]}
+qcos = {version = "0.1.11", features=["progress-bar"]}
 ```
