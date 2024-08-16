@@ -45,7 +45,7 @@ pub struct Part {
 }
 
 /// 错误码
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ErrNo {
     /// 操作成功
     SUCCESS = 0,
@@ -121,7 +121,7 @@ impl Display for Response {
         write!(
             f,
             r#"{{"error_no": "{}","error_message": "{}","result": "{}"}}"#,
-            self.error_no,
+            self.error_no as i32,
             self.error_message,
             String::from_utf8_lossy(&self.result)
         )

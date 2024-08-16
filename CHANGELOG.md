@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.11] - 2024-08-17
+
+### Fixed
+
+- Fix download file when object not exist
+
 ## [0.1.10] - 2024-08-14
 
 ### Changed

@@ -150,7 +150,7 @@ pub trait Objects {
     /// 下载文件到本地
     async fn get_object(&self, key: &str, file_name: &str, threads: Option<u8>) -> Response;
 
-    async fn get_object_size(&self, key: &str) -> usize;
+    async fn get_object_size(&self, key: &str) -> i64;
 
     /// 下载文件到本地
     #[cfg(feature = "progress-bar")]
@@ -797,6 +797,10 @@ impl Objects for client::Client {
         progress_style: Option<ProgressStyle>,
     ) -> Response {
         let size = self.get_object_size(key).await;
+        if size < 0 {
+            return Response::new(ErrNo::STATUS, String::from("object not exists"), Vec::new());
+        }
+        let size = size as usize;
         let multi = MultiProgress::new();
         let sty = match progress_style {
             Some(sty)=>sty,
@@ -1170,7 +1174,7 @@ impl Objects for client::Client {
     }
 
     /// 获取文件的大小
-    async fn get_object_size(&self, key: &str) -> usize {
+    async fn get_object_size(&self, key: &str) -> i64 {
         let url_path = self.get_path_from_object_key(key);
         let url = self.get_full_url_from_path(url_path.as_str());
         let headers = self.get_headers_with_auth("head", url_path.as_str(), None, None, None);
@@ -1180,6 +1184,9 @@ impl Objects for client::Client {
             .send()
             .await
             .unwrap();
+        if response.status().as_u16() == 404 {
+            return -1;
+        }
         let size = match response.headers().get("content-length") {
             Some(v) => v.to_str().unwrap_or("0").parse().unwrap(),
             None => 0,
@@ -1204,6 +1211,10 @@ impl Objects for client::Client {
     /// ```
     async fn get_object_binary(&self, key: &str, threads: Option<u8>) -> Response {
         let size = self.get_object_size(key).await;
+        if size < 0 {
+            return Response::new(ErrNo::STATUS, String::from("object not exists"), Vec::new());
+        }
+        let size = size as usize;
         let mut threads = threads.unwrap_or(5) as usize;
         // 小于1KB只启用1个线程
         if size < 1024 {
