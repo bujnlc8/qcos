@@ -1,4 +1,4 @@
-//! object操作相关
+//! object操作相关 方法见 [`crate::client::Client`#impl-Client-2]
 #![allow(clippy::too_many_arguments)]
 
 use crate::acl;
@@ -18,8 +18,8 @@ use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE};
 pub use reqwest::Body;
 use std::io::Cursor;
 use std::{collections::HashMap, path::PathBuf};
-use tokio::io::AsyncReadExt;
-use tokio::{fs, io::copy};
+use tokio::fs;
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 #[cfg(feature = "progress-bar")]
 use tokio_util::io::ReaderStream;
 
@@ -32,6 +32,9 @@ const PART_MIN_SIZE: u64 = 1024 * 1024;
 
 // 最大上传分片大小1GB
 const PART_MAX_SIZE: u64 = 1024 * 1024 * 1024;
+
+// 为了兼容以前的版本
+pub struct Objects;
 
 /// 存储类型
 /// <https://cloud.tencent.com/document/product/436/33417>
@@ -61,158 +64,7 @@ impl From<StorageClassEnum> for String {
     }
 }
 
-#[async_trait::async_trait]
-pub trait Objects {
-    /// 上传本地小文件
-    async fn put_object(
-        &self,
-        file_path: &PathBuf,
-        key: &str,
-        content_type: Option<mime::Mime>,
-        acl_header: Option<acl::AclHeader>,
-    ) -> Response;
-
-    /// 上传本地小文件，带进度条
-    #[cfg(feature = "progress-bar")]
-    async fn put_object_progress_bar(
-        &self,
-        file_path: &PathBuf,
-        key: &str,
-        content_type: Option<mime::Mime>,
-        acl_header: Option<acl::AclHeader>,
-        progress_style: Option<ProgressStyle>,
-    ) -> Response;
-
-    /// 上传本地大文件，带进度条
-    #[cfg(feature = "progress-bar")]
-    async fn put_big_object_progress_bar(
-        self,
-        file_path: &PathBuf,
-        key: &str,
-        content_type: Option<mime::Mime>,
-        storage_class: Option<StorageClassEnum>,
-        acl_header: Option<acl::AclHeader>,
-        part_size: Option<u64>,
-        max_threads: Option<u64>,
-        progress_style: Option<ProgressStyle>,
-    ) -> Response;
-
-    /// 上传本地大文件
-    async fn put_big_object(
-        self,
-        file_path: &PathBuf,
-        key: &str,
-        content_type: Option<mime::Mime>,
-        storage_class: Option<StorageClassEnum>,
-        acl_header: Option<acl::AclHeader>,
-        part_size: Option<u64>,
-        max_threads: Option<u64>,
-    ) -> Response;
-
-    /// 上传二进制数据，带进度条
-    #[cfg(feature = "progress-bar")]
-    async fn put_object_binary_progress_bar<
-        T: Into<Body> + Send + Sync + tokio::io::AsyncRead + 'static,
-    >(
-        &self,
-        file: T,
-        key: &str,
-        file_size: u64,
-        content_type: Option<mime::Mime>,
-        acl_header: Option<acl::AclHeader>,
-        progress_style: Option<ProgressStyle>,
-    ) -> Response;
-
-    /// 上传二进制数据
-    async fn put_object_binary<T: Into<Body> + Send>(
-        &self,
-        file: T,
-        key: &str,
-        content_type: Option<mime::Mime>,
-        acl_header: Option<acl::AclHeader>,
-    ) -> Response;
-
-    /// 删除文件
-    async fn delete_object(&self, key: &str) -> Response;
-
-    /// 获取文件二进制数据
-    #[cfg(feature = "progress-bar")]
-    async fn get_object_binary_progress_bar(
-        &self,
-        key: &str,
-        threads: Option<u8>,
-        progress_style: Option<ProgressStyle>,
-    ) -> Response;
-
-    /// 获取文件二进制数据，多线程模式
-    async fn get_object_binary(&self, key: &str, threads: Option<u8>) -> Response;
-
-    /// 下载文件到本地
-    async fn get_object(&self, key: &str, file_name: &str, threads: Option<u8>) -> Response;
-
-    async fn get_object_size(&self, key: &str) -> i64;
-
-    /// 下载文件到本地
-    #[cfg(feature = "progress-bar")]
-    async fn get_object_progress_bar(
-        &self,
-        key: &str,
-        file_name: &str,
-        threads: Option<u8>,
-        progress_style: Option<ProgressStyle>,
-    ) -> Response;
-
-    /// 获取分块上传的upload_id
-    async fn put_object_get_upload_id(
-        &self,
-        key: &str,
-        content_type: Option<mime::Mime>,
-        storage_class: Option<StorageClassEnum>,
-        acl_header: Option<acl::AclHeader>,
-    ) -> Response;
-
-    /// 分块上传，带进度条
-    #[cfg(feature = "progress-bar")]
-    async fn put_object_part_progress_bar(
-        self,
-        key: &str,
-        upload_id: &str,
-        part_number: u64,
-        body: Vec<u8>,
-        content_type: Option<mime::Mime>,
-        acl_header: Option<acl::AclHeader>,
-        pb: ProgressBar,
-    ) -> Response;
-
-    /// 分块上传文件
-    /// <https://cloud.tencent.com/document/product/436/7750>
-    async fn put_object_part<T: Into<Body> + Send>(
-        self,
-        key: &str,
-        upload_id: &str,
-        part_number: u64,
-        body: T,
-        file_size: u64,
-        content_type: Option<mime::Mime>,
-        acl_header: Option<acl::AclHeader>,
-    ) -> Response;
-
-    /// 完成分块上传
-    async fn put_object_complete_part(
-        &self,
-        key: &str,
-        etag_map: HashMap<u64, String>,
-        upload_id: &str,
-    ) -> Response;
-
-    /// Abort Multipart Upload 用来实现舍弃一个分块上传并删除已上传的块。
-    /// 当您调用 Abort Multipart Upload 时，如果有正在使用这个 Upload Parts 上传块的请求，
-    /// 则 Upload Parts 会返回失败。当该 UploadId 不存在时，会返回404 NoSuchUpload。
-    async fn abort_object_part(&self, key: &str, upload_id: &str) -> Response;
-}
-
-#[async_trait::async_trait]
-impl Objects for client::Client {
+impl client::Client {
     /// 上传本地小文件，无进度条
     /// <https://cloud.tencent.com/document/product/436/7749>
     /// # 参数
@@ -224,7 +76,6 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
     /// use std::path::PathBuf;
@@ -236,7 +87,7 @@ impl Objects for client::Client {
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn put_object(
+    pub async fn put_object(
         &self,
         file_path: &PathBuf,
         key: &str,
@@ -269,7 +120,6 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
     /// use std::path::PathBuf;
@@ -282,7 +132,7 @@ impl Objects for client::Client {
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
-    async fn put_object_progress_bar(
+    pub async fn put_object_progress_bar(
         &self,
         file_path: &PathBuf,
         key: &str,
@@ -327,7 +177,7 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::{Objects, StorageClassEnum};
+    /// use qcos::objects::StorageClassEnum;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
     /// use std::path::PathBuf;
@@ -341,7 +191,7 @@ impl Objects for client::Client {
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
-    async fn put_big_object_progress_bar(
+    pub async fn put_big_object_progress_bar(
         self,
         file_path: &PathBuf,
         key: &str,
@@ -490,7 +340,7 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::{Objects, StorageClassEnum};
+    /// use qcos::objects::StorageClassEnum;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
     /// use std::path::PathBuf;
@@ -503,7 +353,7 @@ impl Objects for client::Client {
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn put_big_object(
+    pub async fn put_big_object(
         self,
         file_path: &PathBuf,
         key: &str,
@@ -636,7 +486,6 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
     /// async {
@@ -649,7 +498,7 @@ impl Objects for client::Client {
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
-    async fn put_object_binary_progress_bar<
+    pub async fn put_object_binary_progress_bar<
         T: Into<Body> + Send + Sync + tokio::io::AsyncRead + 'static,
     >(
         &self,
@@ -690,7 +539,6 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// use mime;
     /// use qcos::acl::{AclHeader, ObjectAcl};
     /// async {
@@ -702,7 +550,7 @@ impl Objects for client::Client {
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn put_object_binary<T: Into<Body> + Send>(
+    pub async fn put_object_binary<T: Into<Body> + Send>(
         &self,
         file: T,
         key: &str,
@@ -749,14 +597,13 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.delete_object("Cargo.toml").await;
     /// assert!(res.error_message.contains("403"))
     /// };
     /// ```
-    async fn delete_object(&self, key: &str) -> Response {
+    pub async fn delete_object(&self, key: &str) -> Response {
         let url_path = self.get_path_from_object_key(key);
         let headers = self.get_headers_with_auth("delete", url_path.as_str(), None, None, None);
         let resp = Request::delete(
@@ -782,7 +629,6 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object_binary_progress_bar("Cargo.toml", None, None).await;
@@ -790,7 +636,7 @@ impl Objects for client::Client {
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
-    async fn get_object_binary_progress_bar(
+    pub async fn get_object_binary_progress_bar(
         &self,
         key: &str,
         threads: Option<u8>,
@@ -798,7 +644,7 @@ impl Objects for client::Client {
     ) -> Response {
         let size = self.get_object_size(key).await;
         if size < 0 {
-            return Response::new(ErrNo::STATUS, String::from("object not exists"), Vec::new());
+            return Response::new(ErrNo::STATUS, String::from("object not exist"), Vec::new());
         }
         let size = size as usize;
         let multi = MultiProgress::new();
@@ -874,35 +720,74 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object("Cargo.toml", "Cargo.toml", None).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn get_object(&self, key: &str, file_name: &str, threads: Option<u8>) -> Response {
-        let resp = self.get_object_binary(key, threads).await;
-        if resp.error_no == ErrNo::SUCCESS {
-            let file_path = PathBuf::from(file_name);
-            if let Some(parent_file_path) = file_path.parent() {
-                if !parent_file_path.exists() {
-                    fs::create_dir_all(parent_file_path).await.unwrap();
-                }
-            }
-            let mut output_file;
-            match fs::File::create(file_name).await {
-                Ok(e) => output_file = e,
-                Err(e) => {
-                    return Response::new(ErrNo::OTHER, format!("创建文件失败: {}", e), Vec::new());
-                }
-            }
-            if let Err(e) = copy(&mut Cursor::new(resp.result), &mut output_file).await {
-                return Response::new(ErrNo::OTHER, format!("下载文件失败: {}", e), Vec::new());
-            }
-            return Response::default();
+    pub async fn get_object(&self, key: &str, file_name: &str, threads: Option<u8>) -> Response {
+        let size = self.get_object_size(key).await;
+        if size < 0 {
+            return Response::new(ErrNo::STATUS, String::from("object not exist"), Vec::new());
         }
-        resp
+        let file_path = PathBuf::from(file_name);
+        if let Some(parent_file_path) = file_path.parent() {
+            if !parent_file_path.exists() {
+                fs::create_dir_all(parent_file_path).await.unwrap();
+            }
+        }
+        let mut output_file;
+        match fs::File::create(file_name).await {
+            Ok(e) => output_file = e,
+            Err(e) => {
+                return Response::new(ErrNo::OTHER, format!("创建文件失败: {}", e), Vec::new());
+            }
+        }
+        let size = size as usize;
+        let mut threads = threads.unwrap_or(5) as usize;
+        // 小于1KB只启用1个线程
+        if size < 1024 {
+            threads = 1;
+        }
+        let url_path = self.get_path_from_object_key(key);
+        let headers = self.get_headers_with_auth("get", url_path.as_str(), None, None, None);
+        let url = self.get_full_url_from_path(url_path.as_str());
+        let part_size = size / threads;
+        let mut handles = Vec::new();
+        for i in 0..threads {
+            let mut headers = headers.clone();
+            let url = url.clone();
+            let handle = tokio::spawn(async move {
+                // 最后一个线程下载全部
+                let range = if i == threads - 1 {
+                    String::new()
+                } else {
+                    ((i + 1) * part_size - 1).to_string()
+                };
+                let range = format!("bytes={}-{}", i * part_size, range);
+                headers.insert(RANGE, HeaderValue::from_str(&range).unwrap());
+                Request::get(&url, None, Some(&headers)).await
+            });
+            handles.push(handle);
+        }
+        for handle in handles {
+            let response: Response = self.make_response(handle.await.unwrap());
+            if response.error_no != ErrNo::SUCCESS {
+                return response;
+            }
+            match io::copy(&mut Cursor::new(response.result), &mut output_file).await {
+                Ok(_) => {
+                    if part_size > (PART_MAX_SIZE / 5) as usize {
+                        output_file.flush().await.unwrap();
+                    }
+                }
+                Err(e) => {
+                    return Response::new(ErrNo::IO, format!("保存文件失败: {}", e), Vec::new());
+                }
+            }
+        }
+        Response::default()
     }
 
     /// 下载文件到本地，带进度条
@@ -916,7 +801,6 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object_progress_bar("Cargo.toml", "Cargo.toml", None, None).await;
@@ -924,41 +808,105 @@ impl Objects for client::Client {
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
-    async fn get_object_progress_bar(
+    pub async fn get_object_progress_bar(
         &self,
         key: &str,
         file_name: &str,
         threads: Option<u8>,
         progress_style: Option<ProgressStyle>,
     ) -> Response {
-        let resp = self
-            .get_object_binary_progress_bar(key, threads, progress_style)
-            .await;
-        if resp.error_no == ErrNo::SUCCESS {
-            let file_path = PathBuf::from(file_name);
-            if let Some(parent_file_path) = file_path.parent() {
-                if !parent_file_path.exists() {
-                    fs::create_dir_all(parent_file_path).await.unwrap();
-                }
-            }
-            let mut output_file;
-            match fs::File::create(file_name).await {
-                Ok(e) => output_file = e,
-                Err(e) => {
-                    return Response::new(ErrNo::OTHER, format!("创建文件失败: {}", e), Vec::new());
-                }
-            }
-            if let Err(e) = copy(&mut Cursor::new(resp.result), &mut output_file).await {
-                return Response::new(ErrNo::OTHER, format!("下载文件失败: {}", e), Vec::new());
-            }
-            return Response::default();
+        let size = self.get_object_size(key).await;
+        if size < 0 {
+            return Response::new(ErrNo::STATUS, String::from("object not exist"), Vec::new());
         }
-        resp
+        let file_path = PathBuf::from(file_name);
+        if let Some(parent_file_path) = file_path.parent() {
+            if !parent_file_path.exists() {
+                fs::create_dir_all(parent_file_path).await.unwrap();
+            }
+        }
+        let mut output_file;
+        match fs::File::create(file_name).await {
+            Ok(e) => output_file = e,
+            Err(e) => {
+                return Response::new(ErrNo::OTHER, format!("创建文件失败: {}", e), Vec::new());
+            }
+        }
+        let size = size as usize;
+        let multi = MultiProgress::new();
+        let sty = match progress_style {
+            Some(sty)=>sty,
+            None=> ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})").unwrap().progress_chars("#>-")
+        };
+        let mut threads = threads.unwrap_or(5) as usize;
+        // 小于1KB只启用1个线程
+        if size < 1024 {
+            threads = 1;
+        }
+        let url_path = self.get_path_from_object_key(key);
+        let headers = self.get_headers_with_auth("get", url_path.as_str(), None, None, None);
+        let url = self.get_full_url_from_path(url_path.as_str());
+        let part_size = size / threads;
+        let mut handles = Vec::new();
+        for i in 0..threads {
+            let mut headers = headers.clone();
+            let url = url.clone();
+            let multi = multi.clone();
+            let sty = sty.clone();
+            let handle = tokio::spawn(async move {
+                let download_size;
+                // 最后一个线程下载全部
+                let range = if i == threads - 1 {
+                    download_size = size - (threads - 1) * part_size;
+                    String::new()
+                } else {
+                    download_size = part_size;
+                    ((i + 1) * part_size - 1).to_string()
+                };
+                let pb = multi.add(ProgressBar::new(download_size as u64));
+                pb.set_style(sty);
+                let range = format!("bytes={}-{}", i * part_size, range);
+                headers.insert(RANGE, HeaderValue::from_str(&range).unwrap());
+                // let resp = Request::get(&url, None, Some(&headers)).await;
+                let mut resp = reqwest::Client::new()
+                    .get(url)
+                    .headers(headers)
+                    .send()
+                    .await
+                    .unwrap();
+                let mut data = Vec::new();
+                while let Some(chunk) = resp.chunk().await.unwrap() {
+                    pb.inc(chunk.len() as u64);
+                    data.push(chunk);
+                }
+                let resp = Response::data_success(data.concat());
+                pb.finish();
+                resp
+            });
+            handles.push(handle);
+        }
+        for handle in handles {
+            let response = handle.await.unwrap();
+            if response.error_no != ErrNo::SUCCESS {
+                return response;
+            }
+            match io::copy(&mut Cursor::new(response.result), &mut output_file).await {
+                Ok(_) => {
+                    if part_size > (PART_MAX_SIZE / 5) as usize {
+                        output_file.flush().await.unwrap();
+                    }
+                }
+                Err(e) => {
+                    return Response::new(ErrNo::IO, format!("保存文件失败: {}", e), Vec::new());
+                }
+            }
+        }
+        Response::default()
     }
 
     /// 请求实现初始化分块上传，成功执行此请求后将返回 UploadId，用于后续的 Upload Part 请求
     /// <https://cloud.tencent.com/document/product/436/7746>
-    async fn put_object_get_upload_id(
+    pub async fn put_object_get_upload_id(
         &self,
         key: &str,
         content_type: Option<mime::Mime>,
@@ -1020,7 +968,7 @@ impl Objects for client::Client {
     /// 分块上传文件，带进度条
     /// <https://cloud.tencent.com/document/product/436/7750>
     #[cfg(feature = "progress-bar")]
-    async fn put_object_part_progress_bar(
+    pub async fn put_object_part_progress_bar(
         self,
         key: &str,
         upload_id: &str,
@@ -1054,7 +1002,7 @@ impl Objects for client::Client {
 
     /// 分块上传文件，不带进度条
     /// <https://cloud.tencent.com/document/product/436/7750>
-    async fn put_object_part<T: Into<Body> + Send>(
+    pub async fn put_object_part<T: Into<Body> + Send>(
         self,
         key: &str,
         upload_id: &str,
@@ -1151,7 +1099,7 @@ impl Objects for client::Client {
 
     /// 终止分块上传，清理文件碎片
     /// <https://cloud.tencent.com/document/product/436/7740>
-    async fn abort_object_part(&self, key: &str, upload_id: &str) -> Response {
+    pub async fn abort_object_part(&self, key: &str, upload_id: &str) -> Response {
         let url_path = self.get_path_from_object_key(key);
         let mut query = HashMap::new();
         query.insert("uploadId".to_string(), upload_id.to_string());
@@ -1173,8 +1121,11 @@ impl Objects for client::Client {
         self.make_response(resp)
     }
 
-    /// 获取文件的大小
-    async fn get_object_size(&self, key: &str) -> i64 {
+    /// 获取对象的大小(bytes)， 返回`-1`表示文件不存在
+    /// <https://cloud.tencent.com/document/product/436/7745>
+    /// # 参数
+    /// - key: 文件的key，如test/Cargo.lock
+    pub async fn get_object_size(&self, key: &str) -> i64 {
         let url_path = self.get_path_from_object_key(key);
         let url = self.get_full_url_from_path(url_path.as_str());
         let headers = self.get_headers_with_auth("head", url_path.as_str(), None, None, None);
@@ -1202,17 +1153,16 @@ impl Objects for client::Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::objects::Objects;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object_binary("Cargo.toml", None).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn get_object_binary(&self, key: &str, threads: Option<u8>) -> Response {
+    pub async fn get_object_binary(&self, key: &str, threads: Option<u8>) -> Response {
         let size = self.get_object_size(key).await;
         if size < 0 {
-            return Response::new(ErrNo::STATUS, String::from("object not exists"), Vec::new());
+            return Response::new(ErrNo::STATUS, String::from("object not exist"), Vec::new());
         }
         let size = size as usize;
         let mut threads = threads.unwrap_or(5) as usize;
@@ -1250,5 +1200,33 @@ impl Objects for client::Client {
             data.extend(response.result);
         }
         Response::data_success(data)
+    }
+
+    /// 分块获取文件二进制数据
+    /// <https://cloud.tencent.com/document/product/436/7753>
+    /// 文件的大小可以通过 [`get_object_size()`]方法获取
+    /// # 参数
+    /// - key: 文件的key，如test/Cargo.lock
+    /// - range_start: range开头(bytes)，从0开始(包含)
+    /// - range_end: range结尾(bytes)，如果未传，表示直到文件结尾
+    ///
+    /// [`get_object_size()`]: Self::get_object_size
+    pub async fn get_object_binary_range(
+        &self,
+        key: &str,
+        range_start: usize,
+        range_end: Option<usize>,
+    ) -> Response {
+        let url_path = self.get_path_from_object_key(key);
+        let mut headers = self.get_headers_with_auth("get", url_path.as_str(), None, None, None);
+        let url = self.get_full_url_from_path(url_path.as_str());
+        let start = range_start.to_string();
+        let end = match range_end {
+            Some(e) => e.to_string(),
+            None => String::new(),
+        };
+        let range = format!("bytes={start}-{end}");
+        headers.insert(RANGE, HeaderValue::from_str(&range).unwrap());
+        self.make_response(Request::get(&url, None, Some(&headers)).await)
     }
 }

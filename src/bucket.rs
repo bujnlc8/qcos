@@ -1,4 +1,4 @@
-//! bucket相关接口
+//! bucket相关接口 方法见 [`crate::client::Client`#impl-Client]
 
 use crate::client::Client;
 
@@ -8,40 +8,15 @@ use reqwest::Body;
 use crate::acl::AclHeader;
 use std::collections::HashMap;
 
-#[async_trait::async_trait]
-pub trait Bucket {
-    /// 在指定账号下创建一个存储桶
-    /// 创建存储桶时，如果没有指定访问权限，则默认使用私有读写（private）权限。
-    async fn put_bucket(&self, acl_header: Option<AclHeader>) -> Response;
+// 为了兼容以前的版本
+pub struct Bucket;
 
-    /// 用于删除指定的存储桶。该 API 的请求者需要对存储桶有写入权限。
-    async fn delete_bucket(&self) -> Response;
-
-    /// 可以列出该存储桶内的部分或者全部对象。该 API 的请求者需要对存储桶有读取权限。
-    async fn list_objects(
-        &self,
-        prefix: &str,
-        delimiter: &str,
-        encoding_type: &str,
-        marker: &str,
-        max_keys: i32,
-    ) -> Response;
-
-    /// 检查bucket状态
-    async fn check_bucket(&self) -> Response;
-
-    /// 写入存储桶的访问控制列表（ACL)
-    async fn put_bucket_acl(&self, acl_header: AclHeader) -> Response;
-}
-
-#[async_trait::async_trait]
-impl Bucket for Client {
+impl Client {
     /// 创建一个存储桶
     /// <https://cloud.tencent.com/document/product/436/7738>
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::bucket::Bucket;
     /// use qcos::acl::{AclHeader, BucketAcl};
     /// async {
     /// let mut acl_header = AclHeader::new();
@@ -51,7 +26,7 @@ impl Bucket for Client {
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn put_bucket(&self, acl_header: Option<AclHeader>) -> Response {
+    pub async fn put_bucket(&self, acl_header: Option<AclHeader>) -> Response {
         let headers = self.get_headers_with_auth("put", "/", acl_header, None, None);
         let resp = Request::put(
             self.get_full_url_from_path("/").as_str(),
@@ -69,14 +44,13 @@ impl Bucket for Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::bucket::Bucket;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.delete_bucket().await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn delete_bucket(&self) -> Response {
+    pub async fn delete_bucket(&self) -> Response {
         let headers = self.get_headers_with_auth("delete", "/", None, None, None);
         let resp = Request::delete(
             self.get_full_url_from_path("/").as_str(),
@@ -93,14 +67,13 @@ impl Bucket for Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::bucket::Bucket;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.list_objects("prefix", "", "", "/", 100).await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn list_objects(
+    pub async fn list_objects(
         &self,
         prefix: &str,
         delimiter: &str,
@@ -142,14 +115,13 @@ impl Bucket for Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::bucket::Bucket;
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.check_bucket().await;
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn check_bucket(&self) -> Response {
+    pub async fn check_bucket(&self) -> Response {
         let headers = self.get_headers_with_auth("head", "/", None, None, None);
         let resp = Request::head(
             self.get_full_url_from_path("/").as_str(),
@@ -164,7 +136,6 @@ impl Bucket for Client {
     /// # Examples
     /// ```
     /// use qcos::client::Client;
-    /// use qcos::bucket::Bucket;
     /// use qcos::acl::{AclHeader, BucketAcl};
     /// async {
     /// let mut acl_header = AclHeader::new();
@@ -174,7 +145,7 @@ impl Bucket for Client {
     /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
-    async fn put_bucket_acl(&self, acl_header: AclHeader) -> Response {
+    pub async fn put_bucket_acl(&self, acl_header: AclHeader) -> Response {
         let mut query = HashMap::new();
         query.insert("acl".to_string(), String::new());
         let headers =

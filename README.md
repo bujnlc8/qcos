@@ -21,7 +21,7 @@
 use std::path::PathBuf;
 use qcos::acl::{AclHeader, ObjectAcl};
 use qcos::client::Client;
-use qcos::objects::{mime, ErrNo, Objects};
+use qcos::objects::{mime, ErrNo};
 
 #[tokio::main]
 async fn main() {
@@ -71,12 +71,12 @@ async fn main() {
 
 ```
 [dependencies]
-qcos = "0.1.11"
+qcos = "0.1.12"
 ```
 
 如果需要开启显示进度条的方法:
 
 ```
 [dependencies]
-qcos = {version = "0.1.11", features=["progress-bar"]}
+qcos = {version = "0.1.12", features=["progress-bar"]}
 ```

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.12] - 2024-08-23
+
+### Changed
+
+- 优化文件的下载，支持边下载边保存
+
+- 移除`async-trait`依赖，不再基于 trait 来实现方法
+
+### Added
+
+- 新增 object `get_object_binary_range`方法，分块获取文件数据
+
 ## [0.1.11] - 2024-08-17
 
 ### Fixed

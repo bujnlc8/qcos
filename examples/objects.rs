@@ -4,14 +4,14 @@ use std::path::PathBuf;
 
 use qcos::acl::{AclHeader, ObjectAcl};
 use qcos::client::Client;
-use qcos::objects::{mime, Objects};
+use qcos::objects::mime;
 use qcos::request::ErrNo;
 
 #[tokio::main]
 async fn main() {
     let client = Client::new(
-        "Your secrect id",
-        "Your secrect key",
+        "your secrect id",
+        "your secrect key",
         "bucket name",
         "region",
     );

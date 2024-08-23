@@ -1,9 +1,9 @@
 [package]
 name = "qcos"
-version = "0.1.11"
+version = "0.1.12"
 edition = "2021"
 authors = ["bujnlc8 <75124771@qq.com>"]
-description = "provide basic interface encapsulation of Tencent Cloud Object Storage (cos)"
+description = "Provide basic interface encapsulation of Tencent Cloud Object Storage (cos)"
 repository = "https://github.com/bujnlc8/qcos"
 license = "MIT"
 keywords = ["cos", "tengxunyun", "tencentcloud", "qcos"]
@@ -18,7 +18,6 @@ sha1 = "0.10.6"
 urlencoding = "2.1.3"
 mime = "0.3.17"
 quick-xml = {version = "0.36.1", features = ["serialize"]}
-async-trait = "0.1.81"
 tokio = { version = "1.39.2", features = ["full"]}
 indicatif = { version = "0.17.8", optional = true }
 futures-util = { version = "0.3.30", optional = true }

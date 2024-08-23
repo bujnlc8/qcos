@@ -1,10 +1,8 @@
 //! bucket管理
 
 use qcos::acl::{AclHeader, BucketAcl};
-use qcos::bucket::Bucket;
 use qcos::client::Client;
 use qcos::request::ErrNo;
-use qcos::service::Service;
 
 #[tokio::main]
 async fn main() {
