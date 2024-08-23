@@ -741,7 +741,11 @@ impl client::Client {
         match fs::File::create(file_name).await {
             Ok(e) => output_file = e,
             Err(e) => {
-                return Response::new(ErrNo::OTHER, format!("创建文件失败: {}", e), Vec::new());
+                return Response::new(
+                    ErrNo::OTHER,
+                    format!("create file failed: {}", e),
+                    Vec::new(),
+                );
             }
         }
         let size = size as usize;
@@ -783,7 +787,11 @@ impl client::Client {
                     }
                 }
                 Err(e) => {
-                    return Response::new(ErrNo::IO, format!("保存文件失败: {}", e), Vec::new());
+                    return Response::new(
+                        ErrNo::IO,
+                        format!("save file failed: {}", e),
+                        Vec::new(),
+                    );
                 }
             }
         }
@@ -829,7 +837,11 @@ impl client::Client {
         match fs::File::create(file_name).await {
             Ok(e) => output_file = e,
             Err(e) => {
-                return Response::new(ErrNo::OTHER, format!("创建文件失败: {}", e), Vec::new());
+                return Response::new(
+                    ErrNo::OTHER,
+                    format!("create file failed: {}", e),
+                    Vec::new(),
+                );
             }
         }
         let size = size as usize;
@@ -897,7 +909,11 @@ impl client::Client {
                     }
                 }
                 Err(e) => {
-                    return Response::new(ErrNo::IO, format!("保存文件失败: {}", e), Vec::new());
+                    return Response::new(
+                        ErrNo::IO,
+                        format!("save file failed: {}", e),
+                        Vec::new(),
+                    );
                 }
             }
         }
