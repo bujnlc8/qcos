@@ -22,7 +22,7 @@ pub enum ObjectAcl {
 impl From<ObjectAcl> for String {
     fn from(val: ObjectAcl) -> Self {
         match val {
-            ObjectAcl::DEFAULT => String::from("value"),
+            ObjectAcl::DEFAULT => String::from("default"),
             ObjectAcl::PRIVATE => String::from("private"),
             ObjectAcl::PublicRead => String::from("public-read"),
             ObjectAcl::BucketOwnerRead => String::from("bucket-owner-read"),
