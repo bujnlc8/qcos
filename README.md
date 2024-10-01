@@ -9,7 +9,7 @@
 
 - 支持文件直传，推荐 1GB 以下的文件
 
-- 支持分块传输，设置分块大小和最大上传线程数量
+- 支持分块传输，设置分块大小和最大上传线程数量(基于 tokio::spawn)
 
 - 支持显示上传进度条(需开启`progress-bar` feature)，上传方法名称加了`_progress_bar`后缀与不显示进度条的方法区分
 
@@ -28,8 +28,8 @@ async fn main() {
     let client = Client::new(
         "Your secrect id",
         "Your secrect key",
-        "bucket name",
-        "region",
+        "Bucket name",
+        "Region",
     );
     let mut acl_header = AclHeader::new();
     acl_header.insert_object_x_cos_acl(ObjectAcl::PublicRead);
@@ -38,7 +38,7 @@ async fn main() {
     if res.error_no == ErrNo::SUCCESS {
         println!("success");
     } else {
-        println!("{}", res.error_message);
+        println!("[{}]: {}", res.error_no, res.error_message);
     }
     // 分块上传，带进度条
     #[cfg(feature = "progress-bar")]
@@ -71,12 +71,12 @@ async fn main() {
 
 ```
 [dependencies]
-qcos = "0.1.12"
+qcos = "0.1"
 ```
 
 如果需要开启显示进度条的方法:
 
 ```
 [dependencies]
-qcos = {version = "0.1.12", features=["progress-bar"]}
+qcos = {version = "0.1", features=["progress-bar"]}
 ```

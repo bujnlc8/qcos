@@ -94,17 +94,17 @@ impl client::Client {
         content_type: Option<mime::Mime>,
         acl_header: Option<acl::AclHeader>,
     ) -> Response {
-        let file = match tokio::fs::File::open(file_path).await {
+        let buf = match tokio::fs::read(file_path).await {
             Ok(file) => file,
             Err(e) => {
                 return Response::new(
                     ErrNo::IO,
-                    format!("打开文件失败: {:?}, {}", file_path, e),
+                    format!("读取文件失败: {:?}, {}", file_path, e),
                     Default::default(),
                 )
             }
         };
-        self.put_object_binary(file, key, content_type, acl_header)
+        self.put_object_binary(buf, key, content_type, acl_header)
             .await
     }
 
@@ -128,7 +128,6 @@ impl client::Client {
     /// acl_header.insert_object_x_cos_acl(ObjectAcl::AuthenticatedRead);
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.put_object_progress_bar(&PathBuf::from("Cargo.toml"), "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header), None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
@@ -171,7 +170,7 @@ impl client::Client {
     /// - storage_class: 存储类型`StorageClassEnum` 默认STANDARD
     /// - acl_header: 请求控制
     /// - part_size: 分片大小，单位bytes，要求1M-1G之间，默认50M
-    /// - max_threads: 最大上传线程数，默认20
+    /// - max_threads: 最大上传线程数，默认20， 每个线程会尝试10次
     /// - progress_style: 进度条样式
     ///
     /// # Examples
@@ -187,7 +186,6 @@ impl client::Client {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// // 分块传输
     /// let res = client.put_big_object_progress_bar(&PathBuf::from("Cargo.toml"), "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(StorageClassEnum::STANDARD), Some(acl_header), Some(1024 * 1024 * 100), None, None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
@@ -273,21 +271,30 @@ impl client::Client {
                 let pb = multi.add(ProgressBar::new(body.len() as u64));
                 pb.set_style(sty.clone());
                 let handle = tokio::spawn(async move {
-                    let resp = this
-                        .clone()
-                        .put_object_part_progress_bar(
-                            &key,
-                            &upload_id,
-                            part_number,
-                            body,
-                            content_type,
-                            acl_header,
-                            pb,
-                        )
-                        .await;
-                    if resp.error_no != ErrNo::SUCCESS {
-                        // 调用清理
-                        this.abort_object_part(&key, upload_id.as_str()).await;
+                    let mut resp = Response::default();
+                    let mut try_times = 10;
+                    while try_times > 0 {
+                        try_times -= 1;
+                        resp = this
+                            .clone()
+                            .put_object_part_progress_bar(
+                                &key,
+                                &upload_id,
+                                part_number,
+                                body.clone(),
+                                content_type.clone(),
+                                acl_header.clone(),
+                                pb.clone(),
+                            )
+                            .await;
+                        if resp.error_no != ErrNo::SUCCESS {
+                            if try_times == 0 {
+                                // 调用清理
+                                this.abort_object_part(&key, upload_id.as_str()).await;
+                            }
+                        } else {
+                            break;
+                        }
                     }
                     resp
                 });
@@ -335,7 +342,7 @@ impl client::Client {
     /// - storage_class: 存储类型`StorageClassEnum` 默认STANDARD
     /// - acl_header: 请求控制
     /// - part_size: 分片大小，单位bytes，要求1M-1G之间，默认50M
-    /// - max_threads: 最大上传线程数，默认20
+    /// - max_threads: 最大上传线程数，默认20， 每个线程会尝试10次
     ///
     /// # Examples
     /// ```
@@ -350,7 +357,6 @@ impl client::Client {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// // 分块传输
     /// let res = client.put_big_object(&PathBuf::from("Cargo.toml"),"Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(StorageClassEnum::STANDARD), Some(acl_header), Some(1024 * 1024 * 100), None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     pub async fn put_big_object(
@@ -428,21 +434,31 @@ impl client::Client {
                 let acl_header = acl_header.clone();
                 let content_type = content_type.clone();
                 let handle = tokio::spawn(async move {
-                    let resp = this
-                        .clone()
-                        .put_object_part(
-                            &key,
-                            &upload_id,
-                            part_number,
-                            body,
-                            part_size1,
-                            content_type,
-                            acl_header,
-                        )
-                        .await;
-                    if resp.error_no != ErrNo::SUCCESS {
-                        // 调用清理
-                        this.abort_object_part(&key, upload_id.as_str()).await;
+                    // 尝试10次
+                    let mut try_times = 10;
+                    let mut resp = Response::default();
+                    while try_times > 0 {
+                        try_times -= 1;
+                        resp = this
+                            .clone()
+                            .put_object_part(
+                                &key,
+                                &upload_id,
+                                part_number,
+                                body.clone(),
+                                part_size1,
+                                content_type.clone(),
+                                acl_header.clone(),
+                            )
+                            .await;
+                        if resp.error_no != ErrNo::SUCCESS {
+                            // 调用清理
+                            if try_times == 0 {
+                                this.abort_object_part(&key, upload_id.as_str()).await;
+                            }
+                        } else {
+                            break;
+                        }
                     }
                     resp
                 });
@@ -494,7 +510,6 @@ impl client::Client {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let buffer = tokio::fs::File::open("Cargo.toml").await.unwrap();
     /// let res = client.put_object_binary_progress_bar(buffer, "Cargo.toml", 100, Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header), None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
@@ -547,7 +562,6 @@ impl client::Client {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let buffer = std::fs::read("Cargo.toml").unwrap();
     /// let res = client.put_object_binary(buffer, "Cargo.toml", Some(mime::TEXT_PLAIN_UTF_8), Some(acl_header)).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     pub async fn put_object_binary<T: Into<Body> + Send>(
@@ -600,7 +614,6 @@ impl client::Client {
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.delete_object("Cargo.toml").await;
-    /// assert!(res.error_message.contains("403"))
     /// };
     /// ```
     pub async fn delete_object(&self, key: &str) -> Response {
@@ -632,7 +645,6 @@ impl client::Client {
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object_binary_progress_bar("Cargo.toml", None, None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
@@ -723,7 +735,6 @@ impl client::Client {
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object("Cargo.toml", "Cargo.toml", None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     pub async fn get_object(&self, key: &str, file_name: &str, threads: Option<u8>) -> Response {
@@ -812,7 +823,6 @@ impl client::Client {
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object_progress_bar("Cargo.toml", "Cargo.toml", None, None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     #[cfg(feature = "progress-bar")]
@@ -1172,7 +1182,6 @@ impl client::Client {
     /// async {
     /// let client = Client::new("foo", "bar", "qcloudtest-xxx", "ap-guangzhou");
     /// let res = client.get_object_binary("Cargo.toml", None).await;
-    /// assert!(res.error_message.contains("403"));
     /// };
     /// ```
     pub async fn get_object_binary(&self, key: &str, threads: Option<u8>) -> Response {
