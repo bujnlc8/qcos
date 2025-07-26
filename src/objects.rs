@@ -330,7 +330,7 @@ impl client::Client {
             // 调用清理
             self.abort_object_part(key, upload_id.as_str()).await;
         }
-        return resp;
+        resp
     }
 
     /// 上传本地大文件，无进度条
@@ -494,7 +494,7 @@ impl client::Client {
             // 调用清理
             self.abort_object_part(key, upload_id.as_str()).await;
         }
-        return resp;
+        resp
     }
 
     /// 上传二进制数据，带进度条

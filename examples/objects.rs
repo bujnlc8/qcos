@@ -134,4 +134,7 @@ async fn main() {
     // 获取预签名下载URL
     let url = client.get_presigned_download_url("Cargo.toml", 3600);
     println!("full_url: {}", url);
+    // 获取web直传签名
+    let signature = client.get_upload_signature("Cargo.toml", None, None);
+    println!("upload signature: {}", signature)
 }
