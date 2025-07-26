@@ -125,4 +125,22 @@ impl Client {
         );
         format!("{url}?{signature}", url = full_url, signature = signature)
     }
+
+    /// 获取web直传签名
+    /// <https://cloud.tencent.com/document/product/436/9067>
+    pub fn get_upload_signature(
+        &self,
+        object_key: &str,
+        acl_header: Option<AclHeader>,
+        origin_headers: Option<HeaderMap>,
+    ) -> String {
+        let url_path = self.get_path_from_object_key(object_key);
+        let header = self.get_headers_with_auth("put", &url_path, acl_header, origin_headers, None);
+        header
+            .get(AUTHORIZATION)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+    }
 }
