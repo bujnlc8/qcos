@@ -20,6 +20,7 @@ pub struct Client {
     secrect_key: String,
     bucket: String,
     region: String,
+    custom_headers: Option<http::HeaderMap>,
 }
 
 impl Client {
@@ -34,6 +35,7 @@ impl Client {
             secrect_key: secrect_key.into(),
             bucket: bucket.into(),
             region: region.into(),
+            custom_headers: None,
         }
     }
 
@@ -54,6 +56,15 @@ impl Client {
         headers.insert(HOST, HeaderValue::from_str(&self.get_host()).unwrap());
         let now_str = Utc::now().format("%a, %d %b %Y %T GMT").to_string();
         headers.insert(DATE, HeaderValue::from_str(&now_str).unwrap());
+
+        if let Some(custom_headers) = &self.custom_headers {
+          for (k, v) in custom_headers.clone().into_iter() {
+            if let Some(k) = k {
+              headers.insert(k, v);
+            }
+          }
+        }
+
         headers
     }
 
@@ -150,5 +161,10 @@ impl Client {
             .to_str()
             .unwrap()
             .to_string()
+    }
+
+    pub fn with_custom_headers(&mut self, headers: HeaderMap) -> &mut Self {
+      self.custom_headers = Some(headers);
+      self
     }
 }
